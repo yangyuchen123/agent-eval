@@ -49,7 +49,10 @@ class FineGrainedRubric(LLMSkill):
         "discrete score, a one-sentence reason, and a verbatim quote from "
         "the output as evidence. Fabricated quotes are rejected. "
         "If evidence is thin, score at most 0.5. "
-        "Return a JSON object only."
+        "Return a FLAT JSON object only, never nested: the top-level keys "
+        "are EXACTLY the question ids listed in the rubric, values are the "
+        "discrete scores; add \"reasons\" and \"evidence\" objects keyed "
+        "by the same question ids."
     )
     analyze_system: str = (
         "You are a benchmark case-specification assistant. Read ONLY the "
@@ -139,8 +142,11 @@ class FineGrainedRubric(LLMSkill):
 
         for q in self.rubric.questions:
             if flat_scores is not None:
-                # flat form: {"Q1": 1.0, ..., "reasons": {...}, "evidence": {...}}
-                item = {"score": flat_scores.get(q.id),
+                # flat form: {"Q1": 0|1, ...} or {"Q1": {"score": ...}, ...}
+                raw_score = flat_scores.get(q.id)
+                if isinstance(raw_score, dict):
+                    raw_score = raw_score.get("score")
+                item = {"score": raw_score,
                         "evidence": (flat_evidence or {}).get(q.id) if isinstance(flat_evidence, dict) else None,
                         "reason": (flat_reasons or {}).get(q.id) if isinstance(flat_reasons, dict) else None}
             else:
