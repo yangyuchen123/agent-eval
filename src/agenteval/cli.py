@@ -80,7 +80,10 @@ def cmd_eval(args: argparse.Namespace) -> int:
         plan_root.mkdir(parents=True, exist_ok=True)
     config = RunConfig(router=router, registry=registry, run_root=run_root,
                        plan_root=plan_root, workers=args.workers,
-                       refresh=args.refresh)
+                       refresh=args.refresh,
+                       agent_name=args.agent_name,
+                       agent_version=args.agent_version,
+                       benchmarks=tuple(args.benchmark))
 
     report = run_eval(config, cases, outputs,
                       on_case=lambda cid: print(f"  ✓ {cid}"))
@@ -211,6 +214,11 @@ def main(argv: list[str] | None = None) -> int:
     p_eval.add_argument("--plan-root", default=None,
                         help="shared plan cache directory (optional)")
     p_eval.add_argument("--model-id", default="unknown")
+    p_eval.add_argument("--agent-name", default="unknown",
+                        help="agent under evaluation (manifest)")
+    p_eval.add_argument("--agent-version", default="")
+    p_eval.add_argument("--benchmark", action="append", default=[],
+                        help="benchmark tag for this run (repeatable)")
     p_eval.add_argument("--workers", type=int, default=1)
     p_eval.add_argument("--refresh", action="store_true",
                         help="ignore plan/results caches")

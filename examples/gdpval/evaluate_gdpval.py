@@ -49,6 +49,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--run-root", type=str, default="run/gdpval")
     p.add_argument("--no-judge", action="store_true",
                    help="skip LLM judge skill (rule checks only)")
+    p.add_argument("--agent-name", default="unknown")
+    p.add_argument("--agent-version", default="")
     return p.parse_args()
 
 
@@ -64,7 +66,9 @@ def main() -> None:
     run_root = Path(args.run_root)
     config = RunConfig(router=router, registry=registry, run_root=run_root,
                        plan_root=run_root.parent / "plans",
-                       model_id=Path(args.outputs).stem)
+                       model_id=Path(args.outputs).stem,
+                       agent_name=args.agent_name, agent_version=args.agent_version,
+                       benchmarks=("gdpval",))
 
     report = run_eval(config, cases, outputs,
                       on_case=lambda cid: print(f"  ✓ {cid}"))

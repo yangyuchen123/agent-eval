@@ -359,3 +359,33 @@ history by capability across benchmarks — answering "which capabilities
 regressed?" (industrial view) instead of "what did one benchmark score?"
 SWE capabilities are hand-annotated in the rubric JSON; GDPVal tags are
 inferred from criterion keywords.
+
+## Run manifest + capability taxonomy (Phase 3.5)
+
+Every run writes `run_manifest.json` next to `history.jsonl`:
+
+```json
+{
+  "run_id": "run-20260822T...",
+  "agent": {"name": "pi", "version": "0.1"},
+  "environment": {"date_utc": "...", "machine": "...", "platform": "...", "python": "..."},
+  "benchmarks": ["gdpval"],
+  "evaluator_snapshot": {
+    "rubric_versions": {"gdpval_83d10b06": ["1.0.0"], ...},
+    "judge_models": ["deepseek-v4-flash"],
+    "evaluator_versions": ["1"]
+  }
+}
+```
+
+Answers "under what conditions was this report produced?" — the
+reproducibility guarantee for cross-benchmark runs. Pass
+`--agent-name/--agent-version/--benchmark` via CLI or the benchmark
+scripts.
+
+Capability tags now have a schema: `CapabilityStore` loads a taxonomy
+JSON (`id`, `description`, `parent`) and validates question tags against
+it. Default taxonomy: `software_engineering → code_reasoning /
+code_quality / ...` and `document_production → format_compliance /
+numerical_accuracy / ...`. Hierarchy rollup is deferred until more data
+exists.

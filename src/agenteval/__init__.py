@@ -10,9 +10,12 @@ from .analysis import (capability_report, cohen_kappa,
                        render_capability_report, render_diagnostics,
                        render_migration, rubric_diagnostics, spearman)
 from .backends import LLMBackend
+from .capabilities import Capability, CapabilityStore, DEFAULT_TAXONOMY
 from .history import (EvalRecord, HistoryStore, new_run_id,
                       question_stats, rubric_question_report,
                       summary_by_skill)
+from .manifest import (EvaluationRun, build_manifest, evaluator_snapshot,
+                       load_manifest, write_manifest)
 from .protocols import (Case, CaseEvidence, Plan, SkillResult, SkillSpec)
 from .rubrics import Rubric, RubricQuestion, RubricStore
 from .planner import LLMRouter, RuleRouter, validate_plan
@@ -28,6 +31,9 @@ __version__ = "0.1.0"
 __all__ = [
     "Case", "CaseEvidence", "Plan", "SkillResult", "SkillSpec",
     "LLMBackend", "Rubric", "RubricQuestion", "RubricStore",
+    "Capability", "CapabilityStore", "DEFAULT_TAXONOMY",
+    "EvaluationRun", "build_manifest", "evaluator_snapshot",
+    "load_manifest", "write_manifest",
     "EvalRecord", "HistoryStore", "new_run_id",
     "question_stats", "rubric_question_report", "summary_by_skill",
     "question_metrics", "rubric_diagnostics", "render_diagnostics",

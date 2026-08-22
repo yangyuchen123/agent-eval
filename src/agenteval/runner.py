@@ -21,6 +21,7 @@ from typing import Any, Callable, Iterable, Mapping
 
 from .history import EvalRecord, HistoryStore, record_from_evidence
 from .io import atomic_write_json, read_json, value_digest
+from .manifest import build_manifest, write_manifest
 from .planner import Router
 from .protocols import Case, CaseEvidence, Plan, SkillResult
 from .skills.registry import SkillRegistry
@@ -39,6 +40,9 @@ class RunConfig:
     run_id: str = ""                   # history grouping key (auto if empty)
     model_id: str = "unknown"          # recorded in history
     history_path: Path | None = None    # default: <run_root>/history.jsonl
+    agent_name: str = "unknown"        # recorded in run manifest
+    agent_version: str = ""
+    benchmarks: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         self.run_root = Path(self.run_root)
@@ -269,6 +273,13 @@ def run_eval(
         store = HistoryStore(config.history_path)
         store.append(history)
         report.cache_stats["history_records"] = len(history)
+        # run-level manifest: under what conditions was this report produced?
+        manifest = build_manifest(
+            config.run_id, HistoryStore(config.history_path),
+            agent_name=config.agent_name, agent_version=config.agent_version,
+            benchmarks=config.benchmarks)
+        write_manifest(config.run_root, manifest)
+        report.cache_stats["manifest_written"] = 1
     return report
 
 

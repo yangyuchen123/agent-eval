@@ -41,6 +41,7 @@ agent-improvement/
 | 3.2 | Judge reliability | κ / ρ / self-consistency | ✅ done |
 | 3.3 | Rubric version migration | Ranking preservation across versions | ✅ done |
 | 3.4 | Capability layer | Cross-benchmark aggregation by latent capability | ✅ done |
+| 3.5 | Run manifest + capability schema | Reproducibility: what produced this report? | ✅ done |
 | 4 | Rubric optimization | LLM proposes rubric edits, human approves | planned |
 
 Naming: we say **rubric optimization** (calibration), not "self-evolving"
@@ -130,6 +131,9 @@ inferred from criterion keywords (overridable per task).
 * *Artifact abstraction* — skill inputs today are text (`patch`/`report`);
   image/slide/repo/data-pipeline artifacts will need an `ArtifactSet`
   layer. The `evaluate(case, output)` boundary stays until then.
+* *Capability rollup* — parent-capability aggregation over the taxonomy
+  tree (child scores → parent) is deferred until more data exists; the
+  taxonomy schema is in place (`agenteval.capabilities`).
 * *JudgeContract* — DeepSeek copied the `{"Q1": ...}` example shape from
   the prompt and renamed questions to match (judge output contamination).
   A schema validator + repair layer independent of the prompt is the long-
@@ -140,3 +144,20 @@ inferred from criterion keywords (overridable per task).
 LLM proposes rubric edits (reword anchors, split/merge questions, adjust
 weights) from the analysis; a human approves; the new rubric version is
 evaluated for agreement with the old one before adoption.
+
+## Layer 3.5 — Run manifest + capability schema (done)
+
+* `src/agenteval/manifest.py` — `EvaluationRun`: run_id, agent (name/
+  version), environment (date/machine/platform/python), benchmarks,
+  evaluator_snapshot (rubric versions, judge models, evaluator versions
+  seen in the run's history). `run_eval` writes `run_manifest.json`
+  automatically; CLI `--agent-name/--agent-version/--benchmark`.
+* `src/agenteval/capabilities.py` — `Capability` (id/description/parent)
+  + `CapabilityStore` (taxonomy JSON load/validate/tree) + a default
+  taxonomy (software_engineering → code_*; document_production → format/
+  numerical/...). Question tags can now be validated against the
+  ontology; hierarchy aggregation (rollup) is deferred (no automation
+  until the data gate).
+
+Industrial question answered: *under what conditions was this report
+produced?* — every run is auditable (who/what/when/which rubric/judge).

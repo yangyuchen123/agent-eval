@@ -38,6 +38,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--run-root", type=str, default="run/swebench")
     p.add_argument("--workers", type=int, default=1)
     p.add_argument("--verbose", action="store_true")
+    p.add_argument("--agent-name", default="unknown")
+    p.add_argument("--agent-version", default="")
     return p.parse_args()
 
 
@@ -68,7 +70,9 @@ def main() -> None:
     run_root = Path(args.run_root)
     config = RunConfig(router=router, registry=registry, run_root=run_root,
                        plan_root=run_root.parent / "plans",
-                       workers=args.workers, model_id=label)
+                       workers=args.workers, model_id=label,
+                       agent_name=args.agent_name, agent_version=args.agent_version,
+                       benchmarks=("swebench",))
 
     report = run_eval(config, cases, outputs,
                       on_case=lambda cid: print(f"  ✓ {cid}"))
