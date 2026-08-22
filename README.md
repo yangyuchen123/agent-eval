@@ -232,3 +232,26 @@ The bundled data already shows the Phase-3 signal: Q3_minimality has the
 highest std (0.20 — the dimension that actually separates gold from pi),
 while Q1/Q2/Q8/Q10 are constant across agents (low discrimination →
 revision candidates).
+
+## Rubric diagnostics (Phase 3.1)
+
+```bash
+agenteval analyze --history run/gold/history.jsonl --history run/pi/history.jsonl \
+                  --rubric patch_quality [--json report.json]
+```
+
+Per question: n / mean / std / entropy / **discrimination =
+corr(question, total)** / distribution, plus a rule-based verdict:
+
+| verdict | meaning |
+| --- | --- |
+| `keep` | spreads AND tracks the overall score — carries signal |
+| `ceiling` / `floor` | everyone maxes/fails — no discrimination |
+| `noisy` | spreads but weak or **negative** corr — anchors may be inverted |
+| `insufficient_data` | < 3 records |
+
+Low variance alone is ambiguous (everyone is good vs rubric too easy vs
+judge leniency); correlation with the total score disambiguates. History
+records now also carry `evaluator_version` (prompt-design version,
+independent from `rubric_version`) and `judge_temperature`, so prompt
+changes never contaminate historical data.

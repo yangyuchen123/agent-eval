@@ -26,6 +26,8 @@ from pathlib import Path
 from typing import Any
 
 from . import score as score_mod
+from .analysis import render_diagnostics, rubric_diagnostics
+from .history import HistoryStore
 from .planner import Router
 from .protocols import Case
 from .report import build_report, evidence_tree_markdown, write_report_artifacts
@@ -108,6 +110,22 @@ def cmd_eval(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_analyze(args: argparse.Namespace) -> int:
+    """Rubric diagnostics over one or more history files."""
+    records = HistoryStore.load_many(args.history)
+    print(f"[analyze] {len(records)} history records from {len(args.history)} file(s)")
+    for rubric_id in args.rubric:
+        report = rubric_diagnostics(records, rubric_id, args.version)
+        print("\n" + render_diagnostics(report))
+        if args.json:
+            out = Path(args.json)
+            import json
+            out.write_text(json.dumps(report, ensure_ascii=False, indent=2),
+                           encoding="utf-8")
+            print(f"[saved] {out}")
+    return 0
+
+
 def cmd_verify(args: argparse.Namespace) -> int:
     """Check that an existing run has evidence + summary for every case."""
     manifest = json.loads(Path(args.cases).read_text(encoding="utf-8"))
@@ -148,6 +166,18 @@ def main(argv: list[str] | None = None) -> int:
     p_verify.add_argument("--cases", required=True)
     p_verify.add_argument("--run-root", default="run")
     p_verify.set_defaults(func=cmd_verify)
+
+    p_analyze = sub.add_parser(
+        "analyze", help="rubric diagnostics over evaluation history")
+    p_analyze.add_argument("--history", action="append", required=True,
+                           help="history.jsonl path (repeatable; merged)")
+    p_analyze.add_argument("--rubric", action="append", required=True,
+                           help="rubric_id to diagnose (repeatable)")
+    p_analyze.add_argument("--version", default=None,
+                           help="pin rubric version (default: all)")
+    p_analyze.add_argument("--json", default=None,
+                           help="also write the report as JSON")
+    p_analyze.set_defaults(func=cmd_analyze)
 
     args = parser.parse_args(argv)
     try:

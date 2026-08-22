@@ -1,0 +1,105 @@
+"""Rubric diagnostics tests — no LLM, no network."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+import pytest  # noqa: E402
+
+from agenteval import (EvalRecord, question_metrics,  # noqa: E402
+                       render_diagnostics, rubric_diagnostics)
+from agenteval.analysis import judge_self_consistency  # noqa: E402
+
+
+def rec(case: str, skill: str, score: float, subscores: dict,
+        rubric_id: str = "r", version: str = "1") -> EvalRecord:
+    return EvalRecord(run_id="run", model_id="m", case_id=case, skill_id=skill,
+                      score=score, subscores=subscores, rubric_id=rubric_id,
+                      rubric_version=version)
+
+
+def test_question_metrics_keep():
+    """Spreading scores that track the total → healthy discriminator."""
+    records = [
+        rec(f"c{i}", "q", 0.2 + 0.2 * i, {"Q1": 0.2 + 0.2 * i})
+        for i in range(5)
+    ]
+    m = question_metrics(records, "Q1")
+    assert m["n"] == 5
+    assert m["std"] > 0.05
+    assert m["discrimination"] is not None and m["discrimination"] > 0.9
+    assert m["recommendation"]["action"] == "keep"
+
+
+def test_question_metrics_ceiling():
+    """Everyone at max → ceiling (no discrimination)."""
+    records = [rec(f"c{i}", "q", 1.0, {"Q1": 1.0}) for i in range(4)]
+    m = question_metrics(records, "Q1")
+    assert m["std"] == 0.0
+    assert m["recommendation"]["action"] == "ceiling"
+
+
+def test_question_metrics_noisy():
+    """Spread but uncorrelated with total → noisy."""
+    # Q1 jitters around while total trends upward → corr ≈ 0
+    records = [
+        rec("c0", "q", 0.50, {"Q1": 0.5}),
+        rec("c1", "q", 0.60, {"Q1": 0.9}),
+        rec("c2", "q", 0.70, {"Q1": 0.2}),
+        rec("c3", "q", 0.80, {"Q1": 0.7}),
+        rec("c4", "q", 0.90, {"Q1": 0.3}),
+    ]
+    m = question_metrics(records, "Q1")
+    assert m["std"] > 0.05
+    corr = m["discrimination"]
+    # small-sample noise: accept None or weak correlation
+    assert corr is None or abs(corr) < 0.4
+    assert m["recommendation"]["action"] in ("noisy", "review")
+
+
+def test_question_metrics_insufficient():
+    m = question_metrics([rec("c1", "q", 0.5, {"Q1": 0.5})], "Q1")
+    assert m["recommendation"]["action"] == "insufficient_data"
+
+
+def test_entropy_uniform_vs_constant():
+    uni = question_metrics(
+        [rec(f"c{i}", "q", 0.5, {"Q1": v}) for i, v in
+         enumerate([0.0, 0.25, 0.5, 0.75, 1.0])], "Q1")
+    const = question_metrics(
+        [rec(f"c{i}", "q", 1.0, {"Q1": 1.0}) for i in range(4)], "Q1")
+    assert uni["entropy"] > const["entropy"]
+
+
+def test_diagnostics_report_and_render():
+    records = ([rec(f"c{i}", "q", 0.2 + 0.2 * i, {"Q1": 0.2 + 0.2 * i,
+                                                  "Q2": 1.0})
+                for i in range(5)])
+    rep = rubric_diagnostics(records, "r")
+    assert rep["n_questions"] == 2
+    assert rep["summary"]["keep"] == 1          # Q1
+    assert rep["summary"]["review"] == 1        # Q2 ceiling
+    text = render_diagnostics(rep)
+    assert "Q1" in text and "keep" in text
+    assert "Q2" in text and "ceiling" in text
+
+
+def test_judge_self_consistency():
+    records = [rec("c1", "q", s, {"Q1": s}) for s in (0.8, 0.8, 0.6)]
+    out = judge_self_consistency(records)
+    assert out["n_repeated"] == 1
+    assert out["mean_std"] == pytest.approx(0.0943, abs=1e-3)
+    assert "c1::q" in out["by_item"]
+
+
+def test_evaluator_version_recorded():
+    r = EvalRecord(run_id="r", model_id="m", case_id="c", skill_id="q",
+                   score=0.5, subscores={}, evaluator_version="2",
+                   judge="j", judge_temperature=0.7)
+    d = r.to_dict()
+    back = EvalRecord.from_dict(d)
+    assert back.evaluator_version == "2"
+    assert back.judge_temperature == 0.7

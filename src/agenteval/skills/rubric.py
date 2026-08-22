@@ -40,6 +40,10 @@ class FineGrainedRubric(LLMSkill):
     """
 
     rubric: Rubric = None  # type: ignore[assignment]  # set by subclass/init
+    # prompt/evaluator design version — independent from the rubric data
+    # version (changing the judge prompt must NOT be confused with changing
+    # the rubric questions)
+    EVALUATOR_VERSION = "1"
     judge_system: str = (
         "You are a strict evaluation judge. Answer each question with a "
         "discrete score, a one-sentence reason, and a verbatim quote from "
@@ -58,7 +62,9 @@ class FineGrainedRubric(LLMSkill):
         if not isinstance(rubric, Rubric) or not rubric.questions:
             raise ValueError("FineGrainedRubric requires a Rubric with questions")
         self.rubric = rubric
-        self.definition_version = f"{self.skill_id}.rubric.v{self.rubric.version}"
+        self.definition_version = (
+            f"{self.skill_id}.evaluator.v{self.EVALUATOR_VERSION}"
+            f".rubric.v{self.rubric.version}")
 
     # ------------------------------------------------------------ stage 1
     def analyze_prompt(self, case: Case) -> str:
@@ -110,6 +116,8 @@ class FineGrainedRubric(LLMSkill):
             "backend_digest": self.backend.config_digest,
             "rubric_id": self.rubric.rubric_id,
             "rubric_version": self.rubric.version,
+            "evaluator_version": self.EVALUATOR_VERSION,
+            "temperature": self.backend.temperature,
             "provenance": verify_resp["response_metadata"],
         }
         return result

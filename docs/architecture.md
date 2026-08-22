@@ -37,7 +37,9 @@ agent-improvement/
 | --- | --- | --- | --- |
 | 1 | Rubric as data | How are evaluation standards defined & versioned? | ✅ done |
 | 2 | Evaluation history | What score, which rubric version, when? | ✅ done |
-| 3 | Rubric analysis | Which questions discriminate? Which judges disagree? | planned |
+| 3.1 | Rubric diagnostics | Which questions discriminate? (variance/entropy/corr) | ✅ done |
+| 3.2 | Judge reliability | Self-consistency, judge↔rule agreement | planned |
+| 3.3 | Rubric version migration | Ranking consistency across rubric versions | planned |
 | 4 | Rubric optimization | LLM proposes rubric edits, human approves | planned |
 
 Naming: we say **rubric optimization** (calibration), not "self-evolving"
@@ -66,14 +68,24 @@ Sample discrimination report on the bundled data (3 records):
 Q3_minimality std=0.20 (best discriminator), Q1/Q2/Q8/Q10 std=0
 (candidates for revision in Phase 3).
 
-## Layer 3 — Rubric analysis (planned)
+## Layer 3.1 — Rubric diagnostics (done)
 
-Per-question statistics across runs and models:
-* discrimination — variance across agents; questions where everyone scores
-  the same carry no signal;
-* consistency — judge self-consistency (repeat scoring std), judge↔rule
-  agreement (κ/ρ), judge-model sensitivity;
-* reports (JSON + readable), human decides what to change.
+`src/agenteval/analysis.py` + `agenteval analyze` CLI:
+* variance / entropy / difficulty / distribution per question;
+* **discrimination** = corr(question, total) — an IRT-style item-quality
+  proxy. Low variance is ambiguous (everyone good / rubric too easy /
+  judge leniency); correlation with the overall score disambiguates;
+* rule-based verdicts: `ceiling` (everyone maxes), `floor`, `noisy`
+  (weak or negative corr — anchors may be inverted), `keep`, `insufficient_data`.
+
+Human reads the report and decides; no automatic rubric generation yet.
+
+## Layer 3.2/3.3 — judge reliability & version migration (planned)
+
+* 3.2: judge self-consistency (repeated scoring std), judge↔rule agreement
+  (κ/ρ), pairwise preference validation (human prefers A, judge agrees?).
+* 3.3: when a rubric version changes, compare ranking consistency before
+  adopting the new version (evaluator_version in history makes this safe).
 
 ## Layer 4 — Rubric optimization (planned)
 

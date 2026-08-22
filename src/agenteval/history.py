@@ -43,7 +43,9 @@ class EvalRecord:
     status: str = "ok"
     rubric_id: str | None = None
     rubric_version: str | None = None
-    judge: str | None = None
+    evaluator_version: str | None = None   # prompt/evaluator design version
+    judge: str | None = None               # judge model
+    judge_temperature: float | None = None
     timestamp: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -58,7 +60,9 @@ class EvalRecord:
             "status": self.status,
             "rubric_id": self.rubric_id,
             "rubric_version": self.rubric_version,
+            "evaluator_version": self.evaluator_version,
             "judge": self.judge,
+            "judge_temperature": self.judge_temperature,
             "timestamp": self.timestamp,
         }
 
@@ -74,7 +78,9 @@ class EvalRecord:
             status=str(data.get("status") or "ok"),
             rubric_id=data.get("rubric_id"),
             rubric_version=data.get("rubric_version"),
+            evaluator_version=data.get("evaluator_version"),
             judge=data.get("judge"),
+            judge_temperature=data.get("judge_temperature"),
             timestamp=str(data.get("timestamp") or ""),
         )
 
@@ -98,7 +104,9 @@ def record_from_evidence(
             status=result.status,
             rubric_id=judge_diag.get("rubric_id"),
             rubric_version=judge_diag.get("rubric_version"),
+            evaluator_version=judge_diag.get("evaluator_version"),
             judge=judge_diag.get("model"),
+            judge_temperature=judge_diag.get("temperature"),
             timestamp=stamp,
         ))
     return records
