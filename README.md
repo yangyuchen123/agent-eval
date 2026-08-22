@@ -1,5 +1,8 @@
 # AgentEval
 
+> **恢复上下文**:先读 [`docs/DESIGN_MEMORY.md`](docs/DESIGN_MEMORY.md) —— 模块地图、设计意图、关键决策的「为什么」、踩坑史,一站式记忆恢复。
+
+
 **Agentified evaluation framework for LLM agents**: skill routing, evidence trees, auditable scoring.
 
 Evaluation becomes an *agent system*: for each case a router decides which
