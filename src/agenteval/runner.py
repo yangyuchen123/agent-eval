@@ -51,7 +51,16 @@ class RunReport:
 # ------------------------------------------------------------ plans ------
 
 def _plan_digest(case: Case, router: Router) -> str:
-    return value_digest({"router": type(router).__name__, "case": case.to_dict()})
+    # include the router's implementation fingerprint so changing the
+    # routing logic (e.g. adding a diagnostic skill) invalidates plan caches
+    impl_digest = None
+    func = getattr(router, "func", None)
+    code = getattr(func, "__code__", None)
+    if code is not None:
+        impl_digest = hashlib.sha256(code.co_code).hexdigest()[:12]
+    return value_digest({"router": type(router).__name__,
+                         "router_impl": impl_digest,
+                         "case": case.to_dict()})
 
 
 def plan_path(config: RunConfig, case: Case) -> Path | None:

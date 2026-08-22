@@ -67,7 +67,32 @@ run/pi/
 └── evidence/<case_id>.json # auditable evidence tree:
                             #   plan → patch_applies (git apply --check)
                             #        → test_resolution (F2P/P2P pytest results)
+                            #        → patch_quality (LLM rubric, diagnostic)
 ```
+
+## Skills
+
+| skill | role | kind | what it measures | weight |
+| --- | --- | --- | --- | --- |
+| `patch_applies` | observation | rule | `git apply --check` | 0.0 |
+| `test_resolution` | core | rule (docker) | F2P pass + P2P no regression → **resolved** | 1.0 |
+| `patch_quality` | diagnostic | **LLM rubric** | root-cause / minimality / code-quality / regression-risk / test-alignment | 0.0 |
+
+`patch_quality` is an LLM judge (DeepSeek by default) scoring the patch on
+5 dimensions (0-1) with written reasons — it adds a *diagnostic* dimension
+and does not affect the resolved verdict (weight 0). Judge config:
+
+```bash
+# default: deepseek-v4-flash, key from ~/.pi/agent/auth.json
+# override for a local vLLM judge:
+AGENTEVAL_JUDGE_BASE_URL=http://localhost:8000/v1 \
+AGENTEVAL_JUDGE_MODEL=Qwen/Qwen2.5-72B-Instruct \
+python evaluate_predictions.py --predictions predictions.json --run-root run/pi
+```
+
+The gold patch is **never shown to the judge** (prevents leakage).
+Reasoning is disabled for the judge via `extra_body` (fast + cheap:
+~350 tokens vs ~28k with reasoning).
 
 ## Container design (kept from SWE-bench)
 
@@ -93,6 +118,13 @@ run/pi/
 | unrelated patch | not resolved ✗ |
 | code-breaking patch | fail with correct F2P failure ✓ |
 | **pi + deepseek-v4-flash** on `sympy__sympy-24443` | **resolved ✓ (2 passed)** |
+| gold patch quality (LLM rubric) | 0.88 (root-cause 1.0, minimality 0.8) |
+| pi patch quality (LLM rubric) | 0.72-0.80 (root-cause 1.0, minimality 0.6-0.7) |
+
+> Judge scores carry sampling variance across runs (0.72 vs 0.80 for the
+> same pi patch) — exactly what a judge-reliability analysis (self-
+> consistency, judge↔rule agreement) should quantify before trusting
+> rubric numbers.
 
 ## Cache behavior
 

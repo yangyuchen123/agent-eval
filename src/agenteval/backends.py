@@ -33,6 +33,7 @@ class LLMBackend:
     timeout: float = 90.0
     retries: int = 1
     json_mode: bool = True
+    extra_body: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.base_url = self.base_url.rstrip("/")
@@ -47,6 +48,7 @@ class LLMBackend:
             "base_url": self.base_url, "model": self.model,
             "wire_api": self.wire_api, "temperature": self.temperature,
             "max_tokens": self.max_tokens, "json_mode": self.json_mode,
+            "extra_body": self.extra_body,
         })
 
     # ------------------------------------------------------- wire --------
@@ -67,6 +69,7 @@ class LLMBackend:
             body = {
                 "model": self.model, "messages": messages,
                 "temperature": self.temperature, "max_tokens": self.max_tokens,
+                **self.extra_body,
             }
             if self.json_mode:
                 body["response_format"] = {"type": "json_object"}
@@ -148,9 +151,14 @@ def _response_text(response: Mapping[str, Any]) -> str:
         return direct
     choices = response.get("choices") or []
     if choices and isinstance(choices[0], Mapping):
-        content = (choices[0].get("message") or {}).get("content")
+        message = choices[0].get("message") or {}
+        content = message.get("content") if isinstance(message, Mapping) else None
         if isinstance(content, str) and content.strip():
             return content
+        # reasoning models may put everything in reasoning_content
+        reasoning = message.get("reasoning_content")
+        if isinstance(reasoning, str) and reasoning.strip():
+            return reasoning
     parts: list[str] = []
     for output in response.get("output") or []:
         if isinstance(output, Mapping):
