@@ -43,6 +43,9 @@ def parse_args() -> argparse.Namespace:
                    help="only run this instance_id")
     p.add_argument("--keep-repo", action="store_true",
                    help="reuse an existing repo checkout (do not re-clone)")
+    p.add_argument("--collect-only", action="store_true",
+                   help="skip the agent; collect diffs from existing workdirs "
+                        "(merge into predictions.json)")
     return p.parse_args()
 
 
@@ -93,8 +96,23 @@ def main() -> None:
         if not instances:
             raise SystemExit(f"unknown instance: {args.instance}")
 
+    # merge with existing predictions (each run may target a subset)
     predictions: dict[str, dict] = {}
+    if OUT_PREDICTIONS.exists():
+        try:
+            predictions = json.loads(OUT_PREDICTIONS.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            predictions = {}
+
     for inst in instances:
+        if args.collect_only:
+            workdir = WORK_DIR / inst["instance_id"]
+            diff = subprocess.run(
+                ["git", "-C", str(workdir), "diff"],
+                capture_output=True, text=True).stdout
+            predictions[inst["instance_id"]] = {"model_patch": diff}
+            print(f"[collect] {inst['instance_id']}: {len(diff)} bytes")
+            continue
         workdir = prepare_repo(inst, args.keep_repo)
         patch = run_agent(workdir, inst)
         predictions[inst["instance_id"]] = {"model_patch": patch}

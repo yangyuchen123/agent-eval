@@ -125,6 +125,8 @@ class TestResolutionSkill(RuleSkill):
                 "applied": result["applied"],
                 "f2p_passed": result["f2p"]["passed"],
                 "p2p_passed": result["p2p"]["passed"],
+                "collected": result.get("collected", []),
+                "ids_dropped": result.get("ids_dropped", []),
                 "raw_output_tail": result["raw_output"][-3000:],
             },
         )
