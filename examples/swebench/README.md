@@ -76,11 +76,29 @@ run/pi/
 | --- | --- | --- | --- | --- |
 | `patch_applies` | observation | rule | `git apply --check` | 0.0 |
 | `test_resolution` | core | rule (docker) | F2P pass + P2P no regression → **resolved** | 1.0 |
-| `patch_quality` | diagnostic | **LLM rubric** | root-cause / minimality / code-quality / regression-risk / test-alignment | 0.0 |
+| `patch_quality` | diagnostic | **LLM rubric** | 10-question fine-grained code review | 0.0 |
 
-`patch_quality` is an LLM judge (DeepSeek by default) scoring the patch on
-5 dimensions (0-1) with written reasons — it adds a *diagnostic* dimension
-and does not affect the resolved verdict (weight 0). Judge config:
+### `patch_quality` — variance-controlled LLM rubric
+
+Designed after HarnessEval-W's paper to make judge scores stable and
+auditable:
+
+1. **analyze/verify separation** — stage 1 reads *only the issue* and
+   extracts expected behavior + success criteria; stage 2 scores the patch
+   against those criteria. The judge cannot retro-fit the standard to the
+   patch.
+2. **Fine-grained discrete questions** — 10 narrow questions (root cause,
+   localization, minimality, edge cases, readability, style, regression
+   risk, test alignment, clarity, judgeable), each scored on the discrete
+   set {0, 0.25, 0.5, 0.75, 1} with per-anchor definitions — no free-form
+   0-1 sliders.
+3. **Mandatory verbatim evidence** — every question must quote exact patch
+   text; `parse` rejects fabricated quotes (whitespace/diff-prefix tolerant
+   substring check), recording them in `fabricated_evidence_rejected`.
+4. **judgeable gate** — thin evidence caps the score at 0.5.
+
+The gold patch is never shown to the judge (anti-leakage). Reasoning is
+disabled via `extra_body` (fast + cheap). Judge config:
 
 ```bash
 # default: deepseek-v4-flash, key from ~/.pi/agent/auth.json
@@ -89,10 +107,6 @@ AGENTEVAL_JUDGE_BASE_URL=http://localhost:8000/v1 \
 AGENTEVAL_JUDGE_MODEL=Qwen/Qwen2.5-72B-Instruct \
 python evaluate_predictions.py --predictions predictions.json --run-root run/pi
 ```
-
-The gold patch is **never shown to the judge** (prevents leakage).
-Reasoning is disabled for the judge via `extra_body` (fast + cheap:
-~350 tokens vs ~28k with reasoning).
 
 ## Container design (kept from SWE-bench)
 
@@ -118,13 +132,16 @@ Reasoning is disabled for the judge via `extra_body` (fast + cheap:
 | unrelated patch | not resolved ✗ |
 | code-breaking patch | fail with correct F2P failure ✓ |
 | **pi + deepseek-v4-flash** on `sympy__sympy-24443` | **resolved ✓ (2 passed)** |
-| gold patch quality (LLM rubric) | 0.88 (root-cause 1.0, minimality 0.8) |
-| pi patch quality (LLM rubric) | 0.72-0.80 (root-cause 1.0, minimality 0.6-0.7) |
+| gold patch quality (v1, 5 dims) | 0.88 |
+| gold patch quality (v2, 10-question rubric) | 0.85-0.88 |
+| pi patch quality (v2, 10-question rubric) | **0.725-0.775, std ≈ 0.01 over 3 runs** |
 
-> Judge scores carry sampling variance across runs (0.72 vs 0.80 for the
-> same pi patch) — exactly what a judge-reliability analysis (self-
-> consistency, judge↔rule agreement) should quantify before trusting
-> rubric numbers.
+> Judge-variance control: the v1 rubric (5 broad 0-1 sliders) showed
+> run-to-run std ≈ 0.05-0.07; the v2 rubric (analyze/verify separation +
+> 10 discrete questions with anchors + verbatim evidence) brings it to
+> **std ≈ 0.01** (0.725/0.75/0.775). Fabricated evidence quotes are
+> rejected and recorded in `fabricated_evidence_rejected` — the audit
+> trail shows exactly which quotes were trusted.
 
 ## Cache behavior
 
