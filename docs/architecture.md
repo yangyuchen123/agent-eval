@@ -1,5 +1,25 @@
 # Architecture: evaluation core → meta-evaluation
 
+## Project lineage (read first)
+
+**AgentEval is a 2-day re-development on top of
+[HarnessEval-W](https://github.com/mirros-lab/HarnessEval-W)** (a world-model
+video evaluation framework). Three buckets — see
+[DESIGN_MEMORY.md §1.5](DESIGN_MEMORY.md) for the full provenance table:
+
+* **Inherited (ideas)**: agentified evaluation (case → routed skills →
+  evidence tree), digest-based result caching, atomic writes.
+* **Refactored**: `protocols` (dict → dataclasses), `skills/base`
+  (module+contract → `RuleSkill`/`LLMSkill` + role), `planner` (LLM
+  planner → deterministic `RuleRouter`), `runner`/`io` caching, `backends`
+  (VLM/CLIP → new OpenAI-compatible `LLMBackend`).
+* **New (the actual 2 days)**: `FineGrainedRubric` data-driven layer,
+  `history`, `analysis` (diagnostics/migration), `capabilities`,
+  `manifest`, `cli`, and the SWE-bench + GDPVal case packages.
+* **Data**: everything in `examples/` (SWE-bench instances, GDPVal cases,
+  rubrics, pi predictions) was added here; HarnessEval-W's video
+  benchmark/runs data did not come along.
+
 This project is an **evaluation infrastructure**, not an agent framework.
 The boundary is deliberate:
 
