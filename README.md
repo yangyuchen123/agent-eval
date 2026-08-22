@@ -1,0 +1,191 @@
+# AgentEval
+
+**Agentified evaluation framework for LLM agents**: skill routing, evidence trees, auditable scoring.
+
+Evaluation becomes an *agent system*: for each case a router decides which
+evaluation skills apply (with reasons), each skill answers its question
+against the agent output, and every step — plan, sub-scores, reasons,
+judge prompts, raw model output — is saved as an inspectable **evidence
+tree**. This is the "harness" paradigm from the LLM ecosystem applied to
+agent evaluation.
+
+> Mechanism lineage: the agentified-evaluation idea (case-grounded skill
+> routing → sub-agent reasoning → validated aggregation) is adapted from
+> [HarnessEval-W](https://github.com/MirroS-Lab/HarnessEval-W)
+> (Apache-2.0), which evaluates video world models. AgentEval keeps the
+> mechanism but is **domain-agnostic**: it knows nothing about any agent
+> task.
+
+## Why this design
+
+| Problem with naive agent eval | AgentEval's answer |
+| --- | --- |
+| One fixed rubric misses case-specific aspects | **Router** picks skills per case, with reasons |
+| Scores without justification can't be audited | **Evidence tree**: every score links sub-scores + reasons |
+| Rule metrics are free but rigid; judges are general but noisy | **Both coexist**: RuleSkills + LLMSkills plug in side by side |
+| Re-evaluating after fixing a skill wastes API calls | **Digest caching**: results keyed by (skill impl, case, output) |
+
+## Concepts
+
+```
+Case        — one evaluation instance: task + expected + context (domain-supplied)
+Skill       — one evaluation question: RuleSkill (deterministic) or LLMSkill (judge model)
+Registry    — where a case package registers its skills
+Router      — RuleRouter (deterministic) or LLMRouter (agent) → Plan
+Plan        — selected/skipped skills for a case, each with a reason
+Evidence    — plan + per-skill results for one case (auditable)
+Report      — summary, per-skill means, leaderboard (JSON/CSV/MD)
+```
+
+## Install
+
+```bash
+pip install -e .            # framework only; no runtime dependencies
+pip install -e ".[test]"    # + pytest
+```
+
+## Quick start (with the bundled demo)
+
+```bash
+# 1. generate demo cases + fake agent outputs
+python examples/demo/gen_demo.py
+
+# 2. evaluate a "good" agent
+PYTHONPATH=src:examples/demo agenteval eval \
+    --cases examples/demo/data/cases.json \
+    --outputs examples/demo/data/outputs_good.json \
+    --case-package agent_demo \
+    --run-root run/good --plan-root run/plans --model-id good-agent
+
+# 3. evaluate a "bad" agent into a separate run
+PYTHONPATH=src:examples/demo agenteval eval \
+    --cases examples/demo/data/cases.json \
+    --outputs examples/demo/data/outputs_bad.json \
+    --case-package agent_demo \
+    --run-root run/bad --model-id bad-agent
+```
+
+Run outputs:
+
+```
+run/<model-id>/
+├── summary.json          # overall + per-skill scores
+├── leaderboard.csv
+├── LEADERBOARD.md
+├── evidence/<case_id>.json   # auditable evidence trees
+└── metric_cache/…            # digest-keyed skill results (reused on re-runs)
+```
+
+## Writing your own case package (cases stay decoupled)
+
+The framework never imports domain code. A case package is any Python
+module exposing:
+
+```python
+def build_registry() -> SkillRegistry: ...   # register your skills
+def build_router(registry) -> Router: ...    # rule or LLM routing
+SKILL_WEIGHTS = {...}                        # optional, for aggregation
+```
+
+Example (`examples/demo/agent_demo.py`): three skills —
+`task_success` (rule, core), `format_check` (rule, observation),
+`quality_judge` (LLM, diagnostic).
+
+### Rule skill
+
+```python
+from agenteval import RuleSkill, SkillResult
+from agenteval.protocols import Case
+
+class TaskSuccess(RuleSkill):
+    skill_id = "task_success"
+    role = "core"
+    question = "Does the output contain the exact expected answer?"
+    definition_version = "my.domain.task_success.v1"
+
+    def evaluate(self, case: Case, output: str) -> SkillResult:
+        ok = output.strip() == case.expected["answer"]
+        return SkillResult(skill_id=self.skill_id, status="ok",
+                           score=1.0 if ok else 0.0,
+                           subscores={"exact_match": 1.0 if ok else 0.0},
+                           reasons={"exact_match": "ok" if ok else "mismatch"})
+```
+
+### LLM judge skill
+
+```python
+from agenteval import LLMBackend, LLMSkill, SkillResult
+
+class QualityJudge(LLMSkill):
+    skill_id = "quality_judge"
+    role = "diagnostic"
+    question = "Is the response clear and correct beyond exact matching?"
+    definition_version = "my.domain.quality.v1"
+    judge_system = "You are a strict judge. Return JSON only."
+
+    def messages(self, case, output): ...     # build the judge prompt
+    def parse(self, parsed, case): ...        # parsed JSON → SkillResult
+```
+
+### Routing
+
+* **RuleRouter** — deterministic selection (use when applicability is known):
+
+```python
+from agenteval import Plan, RuleRouter
+
+def route(case, catalog):
+    return Plan(case_id=case.case_id,
+                selected_skills=({"skill_id": "task_success", "role": "core",
+                                  "reason": "answers must match", "parameters": {}},),
+                skipped_skills=())
+
+router = RuleRouter(route)
+```
+
+* **LLMRouter** — an agent reads the case + catalog and returns selected /
+  skipped skills **with case-grounded reasons** (mirrors HarnessEval's
+  planner). Requires an `LLMBackend` (OpenAI-compatible, urllib only):
+
+```python
+from agenteval import LLMBackend, LLMRouter
+
+backend = LLMBackend(base_url="http://localhost:8000/v1",
+                     model="Qwen/Qwen2.5-72B-Instruct", api_key="EMPTY")
+router = LLMRouter(backend)
+```
+
+Plans are validated before use: unknown/duplicate skills and invalid roles
+are rejected; a plan must contain ≥1 core skill and (if the catalog has
+any) ≥1 observation skill.
+
+## Caching & invalidation
+
+Skill results are keyed by a digest of: skill definition version +
+**skill implementation bytecode** + judge backend config + case + output +
+parameters. Consequences:
+
+* Re-running unchanged inputs costs nothing (LLM calls skipped).
+* Changing a skill's code invalidates its cache even if you forget to bump
+  `definition_version`.
+* Plans are cached separately under `--plan-root` (shared across models,
+  so every model faces the same routing — like HarnessEval).
+
+## Tests
+
+```bash
+python -m pytest tests/ -q        # no LLM / network required
+```
+
+## Roadmap
+
+- [ ] Judge reliability analysis (self-consistency, judge↔rule agreement)
+      as a first-class `agenteval.analysis` module
+- [ ] `agenteval verify` for completeness checks of existing runs (partially
+      present in CLI)
+- [ ] Streaming evidence viewer (evidence tree → HTML)
+
+## License
+
+Apache-2.0. The agentified-evaluation mechanism is adapted from
+HarnessEval-W (Apache-2.0); see NOTICE.

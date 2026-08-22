@@ -1,0 +1,7 @@
+AgentEval
+Copyright 2026
+
+The agentified-evaluation mechanism (case-grounded skill routing, sub-agent
+decomposition, evidence-tree aggregation, digest-based caching) is adapted
+from HarnessEval-W (https://github.com/MirroS-Lab/HarnessEval-W),
+Copyright MirroS-Lab, licensed under the Apache License 2.0.
