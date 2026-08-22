@@ -40,6 +40,7 @@ agent-improvement/
 | 3.1 | Rubric diagnostics | Which questions discriminate? (variance/entropy/corr) | ✅ done |
 | 3.2 | Judge reliability | κ / ρ / self-consistency | ✅ done |
 | 3.3 | Rubric version migration | Ranking preservation across versions | ✅ done |
+| 3.4 | Capability layer | Cross-benchmark aggregation by latent capability | ✅ done |
 | 4 | Rubric optimization | LLM proposes rubric edits, human approves | planned |
 
 Naming: we say **rubric optimization** (calibration), not "self-evolving"
@@ -114,6 +115,25 @@ model for the future proposer.
 **Gate for Layer 4 (proposer)**: only start automatic rubric generation
 with ≥50 cases, ≥3 agents, ≥2 rubric versions — below that, LLM-proposed
 rubrics learn noise.
+
+## Layer 3.4 — Capability layer (done)
+
+`RubricQuestion.capabilities` (latent capability tags, e.g.
+`numerical_accuracy`, `code_efficiency`) make cross-benchmark analysis
+meaningful: SWE-bench Q3_minimality and GDPVal I17_formula_correctness
+both tag `numerical_accuracy`, so `capability_report` answers
+"which agent capabilities regressed?" instead of "what did this benchmark
+score?". SWE rubric JSON carries hand-annotated tags; GDPVal tags are
+inferred from criterion keywords (overridable per task).
+
+**Future seams (recorded, not built yet):**
+* *Artifact abstraction* — skill inputs today are text (`patch`/`report`);
+  image/slide/repo/data-pipeline artifacts will need an `ArtifactSet`
+  layer. The `evaluate(case, output)` boundary stays until then.
+* *JudgeContract* — DeepSeek copied the `{"Q1": ...}` example shape from
+  the prompt and renamed questions to match (judge output contamination).
+  A schema validator + repair layer independent of the prompt is the long-
+  term fix; `parse` compensates today.
 
 ## Layer 4 — Rubric optimization (planned)
 

@@ -302,3 +302,60 @@ of the data model, ready for the future proposer.
 
 **Gate**: automatic rubric generation (Layer 4) starts only at ≥50 cases,
 ≥3 agents, ≥2 rubric versions — below that, LLM-proposed rubrics learn noise.
+
+## Two evaluation regimes, one infrastructure
+
+| | SWE-bench | GDPVal |
+| --- | --- | --- |
+| agent input | problem statement | professional prompt |
+| agent output | patch | deliverable file (as text today) |
+| oracle | container tests | human rubric items |
+| judge | rule (docker) + LLM rubric | LLM rubric (per-task, dynamic) |
+| difficulty | correctness | quality |
+
+The `Skill` / `FineGrainedRubric` abstraction is not coding-patch specific —
+GDPVal's rubric is built *per task from the task's own data* (dynamic
+rubric) and reuses all framework mechanics (two-stage, discrete ladder,
+evidence checks, history, diagnostics).
+
+## Capability layer (cross-benchmark axis)
+
+`RubricQuestion.capabilities` tags what latent capability a question
+measures. `capability_report(records, question_capabilities)` aggregates
+history by capability across benchmarks:
+
+```bash
+# capability report: SWE gold + GDPVal demo history
+python - <<'EOF'
+from agenteval import HistoryStore, capability_report, render_capability_report
+from agenteval.rubrics import RubricStore
+records = HistoryStore.load_many(["examples/swebench/run/gold/history.jsonl",
+                                  "examples/gdpval/run/demo/history.jsonl"])
+q2c = {}
+r = RubricStore("examples/swebench/rubrics").load("patch_quality")
+q2c["patch_quality"] = {q.id: q.capabilities for q in r.questions}
+print(render_capability_report(capability_report(records, q2c)))
+
+## Two evaluation regimes, one infrastructure
+
+| | SWE-bench | GDPVal |
+| --- | --- | --- |
+| agent input | problem statement | professional prompt |
+| agent output | patch | deliverable file (as text today) |
+| oracle | container tests | human rubric items |
+| judge | rule (docker) + LLM rubric | LLM rubric (per-task, dynamic) |
+| difficulty | correctness | quality |
+
+The `Skill` / `FineGrainedRubric` abstraction is not coding-patch specific —
+GDPVal's rubric is built *per task from the task's own data* (dynamic
+rubric) and reuses all framework mechanics (two-stage, discrete ladder,
+evidence checks, history, diagnostics).
+
+## Capability layer (cross-benchmark axis)
+
+`RubricQuestion.capabilities` tags what latent capability a question
+measures. `capability_report(records, question_capabilities)` aggregates
+history by capability across benchmarks — answering "which capabilities
+regressed?" (industrial view) instead of "what did one benchmark score?"
+SWE capabilities are hand-annotated in the rubric JSON; GDPVal tags are
+inferred from criterion keywords.

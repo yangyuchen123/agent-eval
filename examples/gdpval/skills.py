@@ -57,7 +57,8 @@ def rubric_from_task(task: dict) -> Rubric:
 
     Each item becomes one question: score 1 if the criterion is satisfied,
     0 otherwise. Weight = the item's score (negative = penalty), so the
-    weighted-SUM aggregation reproduces GDPVal's total.
+    weighted-SUM aggregation reproduces GDPVal's total. Capabilities are
+    tagged heuristically from criterion keywords (override per task later).
     """
     items = task["rubric_items"]
     questions = []
@@ -72,6 +73,7 @@ def rubric_from_task(task: dict) -> Rubric:
                     "0 = not satisfied or no evidence",
             evidence="Quote the exact output text that supports your verdict",
             weight=float(item.get("score") or 0.0),
+            capabilities=_infer_capabilities(criterion),
         ))
     return Rubric(
         rubric_id=f"gdpval_{task['task_id'][:8]}",
@@ -82,6 +84,35 @@ def rubric_from_task(task: dict) -> Rubric:
         meta_questions=frozenset(),
         allowed_scores=(0.0, 1.0),
     )
+
+
+# capability keyword heuristics (GDPVal criteria are free text)
+_CAP_RULES: list[tuple[str, tuple[str, ...]]] = [
+    ("numerical_accuracy", ("number", "numerical", "total", "sum", "amount",
+                            "figure", "percentage", "rate", "value", "quantity",
+                            "calculate", "formula", "price", "budget", "cost")),
+    ("data_handling", ("data", "row", "column", "field", "record", "entry",
+                        "population", "sample", "source", "reference")),
+    ("format_compliance", ("file", "filename", "extension", "worksheet",
+                            "sheet", "workbook", "format", "header", "layout",
+                            "document", "attachment", "pdf", "excel")),
+    ("content_accuracy", ("accurate", "correct", "error", "verify", "check",
+                           "match", "consisten", "identif", "completeness",
+                           "all ", "each ")),
+    ("completeness", ("complete", "include", "cover", "contain", "provide",
+                       "list", "detail")),
+    ("professional_quality", ("professional", "clear", "quality", "concise",
+                               "well-organization", "readable", "coherent",
+                               "present")),
+    ("compliance_standards", ("standard", "requirement", "policy", "regulatory",
+                               "compliance", "legal", "guideline", "must")),
+]
+
+
+def _infer_capabilities(criterion: str) -> tuple[str, ...]:
+    text = criterion.lower()
+    found = [cap for cap, kws in _CAP_RULES if any(k in text for k in kws)]
+    return tuple(found) or ("uncategorized",)
 
 
 class GDPValJudgeSkill(FineGrainedRubric):

@@ -39,6 +39,11 @@ class RubricQuestion:
     # from across rubric versions. Empty = this id is its own lineage.
     # Needed by Phase 3.3 (version migration) and the future proposer.
     lineage: tuple[str, ...] = ()
+    # latent capabilities this question measures (cross-benchmark axis).
+    # E.g. ("numerical_accuracy", "formula_reasoning"). Capability-level
+    # reports aggregate questions across benchmarks by these tags — this
+    # is the abstraction that makes cross-benchmark analysis meaningful.
+    capabilities: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         d = {
@@ -48,6 +53,8 @@ class RubricQuestion:
         }
         if self.lineage:
             d["lineage"] = list(self.lineage)
+        if self.capabilities:
+            d["capabilities"] = list(self.capabilities)
         return d
 
     @classmethod
@@ -62,6 +69,7 @@ class RubricQuestion:
             evidence=str(data.get("evidence") or ""),
             weight=float(data.get("weight", 1.0)),
             lineage=tuple(str(x) for x in (data.get("lineage") or ())),
+            capabilities=tuple(str(x) for x in (data.get("capabilities") or ())),
         )
 
 

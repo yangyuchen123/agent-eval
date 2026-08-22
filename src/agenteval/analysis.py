@@ -490,3 +490,65 @@ def render_migration(report: Mapping[str, Any]) -> str:
     else:
         lines.append("- none")
     return "\n".join(lines)
+
+
+# ---------------------------------------------------- capability report -----
+
+def capability_report(
+    records: list[EvalRecord],
+    question_capabilities: dict[str, tuple[str, ...]] | None = None,
+) -> dict[str, Any]:
+    """Aggregate evaluation history by *latent capability* instead of by
+    rubric question.
+
+    ``question_capabilities`` maps skill_id to a mapping question_id →
+    capability tags. When omitted, tags are read from the rubric data when
+    available (skills carry a ``rubric`` attribute) — otherwise questions
+    are uncategorized.
+
+    This is what makes cross-benchmark analysis meaningful: SWE-bench's
+    Q3_minimality and GDPVal's I17_formula_correctness may both tag
+    ``numerical_accuracy`` (or ``code_efficiency``), so a capability report
+    answers "which agent capabilities regressed?" instead of "what did this
+    benchmark score?".
+    """
+    # build question→capabilities map
+    q2c: dict[tuple[str, str], tuple[str, ...]] = {}
+    for skill_id, mapping in (question_capabilities or {}).items():
+        for qid, caps in mapping.items():
+            q2c[(skill_id, qid)] = tuple(caps)
+
+    # capability → list of (score, weight) from subscores
+    cap_scores: dict[str, list[tuple[float, float]]] = {}
+    for r in records:
+        for qid, s in (r.subscores or {}).items():
+            if s is None:
+                continue
+            caps = q2c.get((r.skill_id, qid))
+            if not caps:
+                continue
+            w = 1.0
+            for cap in caps:
+                cap_scores.setdefault(cap, []).append((float(s), w))
+
+    report: dict[str, Any] = {"capabilities": {}}
+    for cap, pairs in sorted(cap_scores.items()):
+        vals = [s for s, _ in pairs]
+        report["capabilities"][cap] = {
+            "n": len(vals),
+            "mean": round(sum(vals) / len(vals), 4),
+            "std": round(statistics.pstdev(vals), 4) if len(vals) > 1 else 0.0,
+            "sources": sorted({f"{r.skill_id}" for r in records}),
+        }
+    return report
+
+
+def render_capability_report(report: Mapping[str, Any]) -> str:
+    lines = ["# Capability report",
+             "",
+             "| capability | n | mean | std |",
+             "| --- | --- | --- | --- |"]
+    for cap, stats in report["capabilities"].items():
+        lines.append(f"| {cap} | {stats['n']} | {stats['mean']:.3f} "
+                     f"| {stats['std']:.3f} |")
+    return "\n".join(lines)

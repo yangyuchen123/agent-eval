@@ -203,3 +203,38 @@ def test_migration_insufficient():
     from agenteval import migration_report
     rep = migration_report([], "q", "v1", "v2")
     assert rep.get("note")
+
+
+# ------------------------------------------------------- capability report ---
+
+def test_capability_report_aggregates_across_skills():
+    from agenteval import capability_report
+    recs = [
+        EvalRecord(run_id="r", model_id="m", case_id="c1", skill_id="swe",
+                   score=0.5, subscores={"Q3": 1.0, "Q1": 0.0},
+                   rubric_id="patch_quality"),
+        EvalRecord(run_id="r", model_id="m", case_id="c2", skill_id="swe",
+                   score=0.5, subscores={"Q3": 0.0, "Q1": 1.0},
+                   rubric_id="patch_quality"),
+        EvalRecord(run_id="r", model_id="m", case_id="c3", skill_id="gdp",
+                   score=0.5, subscores={"I17": 1.0},
+                   rubric_id="gdpval_x"),
+    ]
+    caps = {
+        "swe": {"Q3": ("code_efficiency",), "Q1": ("code_reasoning",)},
+        "gdp": {"I17": ("numerical_accuracy",)},
+    }
+    rep = capability_report(recs, caps)
+    assert rep["capabilities"]["code_efficiency"]["mean"] == 0.5
+    assert rep["capabilities"]["code_efficiency"]["n"] == 2
+    assert rep["capabilities"]["numerical_accuracy"]["mean"] == 1.0
+
+
+def test_capability_report_ignores_unmapped():
+    from agenteval import capability_report
+    recs = [EvalRecord(run_id="r", model_id="m", case_id="c", skill_id="s",
+                       score=0.5, subscores={"Q9": 0.5})]
+    rep = capability_report(recs, {"s": {"Q9": ("x",)}})
+    assert "x" in rep["capabilities"]
+    rep2 = capability_report(recs)     # no mapping → nothing
+    assert rep2["capabilities"] == {}
