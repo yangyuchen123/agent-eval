@@ -142,3 +142,64 @@ def test_judge_rule_agreement_insufficient():
     out = judge_rule_agreement([], "judge", "rule")
     assert out["n_paired"] == 0
     assert "cohen_kappa" not in out
+
+
+# ------------------------------------------------------ version migration ---
+
+def test_kendall_tau_perfect_and_inverted():
+    from agenteval import kendall_tau
+    assert kendall_tau([1, 2, 3, 4], [10, 20, 30, 40]) == 1.0
+    assert kendall_tau([1, 2, 3, 4], [40, 30, 20, 10]) == -1.0
+    assert kendall_tau([1, 2], [5, 5]) is None          # tie → no pairs
+
+
+def _mig_records(v1: list[float], v2: list[float]):
+    recs = []
+    for i, (a, b) in enumerate(zip(v1, v2)):
+        recs.append(EvalRecord(run_id="r", model_id="m", case_id=f"c{i}",
+                               skill_id="q", score=a, subscores={"Q1": a},
+                               rubric_id="r", rubric_version="v1"))
+        recs.append(EvalRecord(run_id="r", model_id="m", case_id=f"c{i}",
+                               skill_id="q", score=b, subscores={"Q1": b,
+                                                                  "Q9": b},
+                               rubric_id="r", rubric_version="v2"))
+    return recs
+
+
+def test_migration_ranking_preserved():
+    from agenteval import migration_report
+    # same ordering, different absolute scale → ranking fully preserved
+    recs = _mig_records([0.8, 0.6, 0.4, 0.2], [0.9, 0.7, 0.5, 0.3])
+    rep = migration_report(recs, "q", "v1", "v2")
+    assert rep["ranking"]["spearman_rho"] == 1.0
+    assert rep["ranking"]["kendall_tau"] == 1.0
+    assert rep["drift"]["shift_type"] == "systematic"
+    assert rep["drift"]["mean_delta"] == pytest.approx(0.1)
+    assert rep["question_changes"]["added"] == ["Q9"]
+
+
+def test_migration_ranking_flipped():
+    from agenteval import migration_report
+    # order inverted → ranking destroyed
+    recs = _mig_records([0.8, 0.6, 0.4, 0.2], [0.2, 0.4, 0.6, 0.8])
+    rep = migration_report(recs, "q", "v1", "v2")
+    assert rep["ranking"]["spearman_rho"] == -1.0
+    assert rep["drift"]["shift_type"] == "mixed"   # some up, some down
+
+
+def test_migration_disagreements():
+    from agenteval import migration_report
+    # one case flips while others shift uniformly
+    recs = _mig_records([0.8, 0.6, 0.4, 0.2],
+                        [0.9, 0.7, 0.85, 0.3])     # c2: 0.4 → 0.85
+    rep = migration_report(recs, "q", "v1", "v2", disagreement_threshold=0.2)
+    assert rep["n_large_disagreements"] == 1
+    assert rep["large_disagreements"][0]["case_id"] == "c2"
+    # c2 rose 3× more than others but in the same direction → systematic
+    assert rep["drift"]["shift_type"] == "systematic"
+
+
+def test_migration_insufficient():
+    from agenteval import migration_report
+    rep = migration_report([], "q", "v1", "v2")
+    assert rep.get("note")

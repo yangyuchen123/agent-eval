@@ -26,7 +26,8 @@ from pathlib import Path
 from typing import Any
 
 from . import score as score_mod
-from .analysis import (judge_rule_agreement, render_diagnostics,
+from .analysis import (judge_rule_agreement, migration_report,
+                       render_diagnostics, render_migration,
                        rubric_diagnostics)
 from .history import HistoryStore
 from .planner import Router
@@ -164,6 +165,23 @@ def render_agreement(agreement: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def cmd_migrate(args: argparse.Namespace) -> int:
+    """Rubric version migration report (ranking preservation, drift)."""
+    records = HistoryStore.load_many(args.history)
+    print(f"[migrate] {len(records)} history records from {len(args.history)} file(s)")
+    report = migration_report(records, args.skill, args.old_version,
+                              args.new_version,
+                              disagreement_threshold=args.threshold)
+    print("\n" + render_migration(report))
+    if args.json:
+        import json
+        out = Path(args.json)
+        out.write_text(json.dumps(report, ensure_ascii=False, indent=2),
+                       encoding="utf-8")
+        print(f"[saved] {out}")
+    return 0
+
+
 def cmd_verify(args: argparse.Namespace) -> int:
     """Check that an existing run has evidence + summary for every case."""
     manifest = json.loads(Path(args.cases).read_text(encoding="utf-8"))
@@ -222,6 +240,19 @@ def main(argv: list[str] | None = None) -> int:
     p_analyze.add_argument("--judge-threshold", type=float, default=0.5,
                            help="pass threshold for the judge score (default 0.5)")
     p_analyze.set_defaults(func=cmd_analyze)
+
+    p_migrate = sub.add_parser(
+        "migrate", help="rubric version migration report")
+    p_migrate.add_argument("--history", action="append", required=True,
+                           help="history.jsonl path (repeatable; merged)")
+    p_migrate.add_argument("--skill", required=True)
+    p_migrate.add_argument("--old-version", required=True)
+    p_migrate.add_argument("--new-version", required=True)
+    p_migrate.add_argument("--threshold", type=float, default=0.2,
+                           help="large-disagreement |Δ| threshold")
+    p_migrate.add_argument("--json", default=None,
+                           help="also write the report as JSON")
+    p_migrate.set_defaults(func=cmd_migrate)
 
     args = parser.parse_args(argv)
     try:

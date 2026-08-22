@@ -278,3 +278,27 @@ Demonstrated: a judge that always passes scores κ=0.0 (chance) even
 though plain agreement looks high; a reliable judge scores κ=1.0. When
 every case passes (no failure samples) κ is undefined — the report says
 so rather than inventing a number.
+
+## Rubric version migration (Phase 3.3)
+
+```bash
+agenteval migrate --history run/gold/history.jsonl --history run/pi/history.jsonl \
+                  --skill patch_quality --old-version 2.0.0 --new-version 3.0.0
+```
+
+Benchmarks fail not because scores are wrong but because **v1 and v2
+scores are not comparable**. This report answers "can conclusions from
+v1 be inherited by v2?":
+
+* **Ranking preservation** — Spearman ρ + Kendall τ (the primary signal;
+  absolute drift is expected, ordering flips are the danger)
+* **Score drift** — means + per-case deltas; `systematic` (all same sign,
+  e.g. rubric got more lenient) vs `mixed` (evaluation logic changed)
+* **Question changes** — removed / added / shared between versions
+* **Large disagreements** — cases where |Δ| exceeds a threshold
+
+`RubricQuestion.lineage` (ancestor question ids across versions) is part
+of the data model, ready for the future proposer.
+
+**Gate**: automatic rubric generation (Layer 4) starts only at ≥50 cases,
+≥3 agents, ≥2 rubric versions — below that, LLM-proposed rubrics learn noise.

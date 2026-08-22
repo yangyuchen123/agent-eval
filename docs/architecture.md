@@ -39,7 +39,7 @@ agent-improvement/
 | 2 | Evaluation history | What score, which rubric version, when? | ✅ done |
 | 3.1 | Rubric diagnostics | Which questions discriminate? (variance/entropy/corr) | ✅ done |
 | 3.2 | Judge reliability | κ / ρ / self-consistency | ✅ done |
-| 3.3 | Rubric version migration | Ranking consistency across rubric versions | planned |
+| 3.3 | Rubric version migration | Ranking preservation across versions | ✅ done |
 | 4 | Rubric optimization | LLM proposes rubric edits, human approves | planned |
 
 Naming: we say **rubric optimization** (calibration), not "self-evolving"
@@ -95,10 +95,25 @@ undefined (p_exp=1) — the report says so explicitly.
 Self-consistency (repeated scoring std) needs multi-run data; the stub is
 in place.
 
-## Layer 3.3 — rubric version migration (planned)
+## Layer 3.3 — rubric version migration (done)
 
-When a rubric version changes, compare ranking consistency before
-adopting the new version (evaluator_version in history makes this safe).
+`agenteval migrate --history ... --skill patch_quality --old-version v1
+--new-version v2`: pairs the same cases across two rubric versions and
+answers **can v1 conclusions be inherited by v2?**
+
+* ranking preservation: Spearman ρ + Kendall τ (the primary signal —
+  absolute scores will drift, orderings matter);
+* score drift: means + per-case deltas, `systematic` (all same sign)
+  vs `mixed` (rubric logic changed) shift;
+* question changes: removed/added/shared (from recorded subscores);
+* large disagreements: cases with |Δ| over a threshold.
+
+`RubricQuestion.lineage` (ancestor ids across versions) is in the data
+model for the future proposer.
+
+**Gate for Layer 4 (proposer)**: only start automatic rubric generation
+with ≥50 cases, ≥3 agents, ≥2 rubric versions — below that, LLM-proposed
+rubrics learn noise.
 
 ## Layer 4 — Rubric optimization (planned)
 

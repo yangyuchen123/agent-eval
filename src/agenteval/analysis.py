@@ -314,3 +314,179 @@ def render_diagnostics(report: Mapping[str, Any]) -> str:
         if rec["action"] != "keep":
             lines.append(f"- **{qid}** [{rec['action']}]: {rec['message']}")
     return "\n".join(lines)
+
+
+# ----------------------------------------------------- version migration -----
+
+def kendall_tau(x: list[float], y: list[float]) -> float | None:
+    """Rank-correlation by pairwise order agreement (τ ∈ [-1, 1])."""
+    n = len(x)
+    if n < 2 or len(x) != len(y):
+        return None
+    concordant = discordant = 0
+    for i in range(n):
+        for j in range(i + 1, n):
+            dx = x[i] - x[j]
+            dy = y[i] - y[j]
+            if dx * dy > 0:
+                concordant += 1
+            elif dx * dy < 0:
+                discordant += 1
+    pairs = concordant + discordant
+    if pairs == 0:
+        return None                      # all pairs are ties
+    return round((concordant - discordant) / pairs, 4)
+
+
+def migration_report(
+    records: list[EvalRecord],
+    skill_id: str,
+    old_version: str,
+    new_version: str,
+    *,
+    disagreement_threshold: float = 0.2,
+) -> dict[str, Any]:
+    """Compare two rubric versions of the same skill on the same cases.
+
+    The question is NOT "are the scores equal" (absolute drift is expected)
+    but "is the ranking preserved" — can conclusions from v1 be inherited
+    by v2?
+
+    * ranking preservation: Spearman ρ + Kendall τ
+    * score drift: means + per-case deltas (systematic shift vs logical
+      change — e.g. A +0.2 while B −0.3 means the rubric logic changed)
+    * large disagreements: cases with |Δ| > threshold, with a hint of
+      which rubric questions were removed/added
+    """
+    old = {r.case_id: float(r.score) for r in records
+           if r.skill_id == skill_id and r.rubric_version == old_version
+           and r.score is not None}
+    new = {r.case_id: float(r.score) for r in records
+           if r.skill_id == skill_id and r.rubric_version == new_version
+           and r.score is not None}
+    cases = sorted(set(old) & set(new))
+    if len(cases) < 2:
+        return {"n_paired": len(cases), "note": "insufficient paired cases"}
+
+    old_scores = [old[c] for c in cases]
+    new_scores = [new[c] for c in cases]
+    deltas = [round(n - o, 4) for o, n in zip(old_scores, new_scores)]
+    mean_old = round(sum(old_scores) / len(old_scores), 4)
+    mean_new = round(sum(new_scores) / len(new_scores), 4)
+
+    # systematic shift = all deltas same sign; logical change = mixed signs
+    signs = {1 if d > 0 else (-1 if d < 0 else 0) for d in deltas} - {0}
+    shift_type = ("systematic" if len(signs) <= 1 else "mixed")
+
+    disagreements = [
+        {"case_id": c, "old": old[c], "new": new[c],
+         "delta": round(new[c] - old[c], 4)}
+        for c, d in zip(cases, deltas)
+        if abs(d) >= disagreement_threshold
+    ]
+    disagreements.sort(key=lambda x: -abs(x["delta"]))
+
+    question_diff = _question_diff(records, skill_id, old_version, new_version)
+
+    return {
+        "skill_id": skill_id,
+        "old_version": old_version,
+        "new_version": new_version,
+        "n_paired": len(cases),
+        "ranking": {
+            "spearman_rho": spearman(old_scores, new_scores),
+            "kendall_tau": kendall_tau(old_scores, new_scores),
+        },
+        "drift": {
+            "mean_old": mean_old,
+            "mean_new": mean_new,
+            "mean_delta": round(mean_new - mean_old, 4),
+            "delta_std": round(statistics.pstdev(deltas), 4) if len(deltas) > 1 else 0.0,
+            "shift_type": shift_type,          # systematic vs mixed
+            "n_increased": sum(1 for d in deltas if d > 0),
+            "n_decreased": sum(1 for d in deltas if d < 0),
+        },
+        "question_changes": question_diff,
+        "large_disagreements": disagreements[:20],
+        "n_large_disagreements": len(disagreements),
+    }
+
+
+def _question_diff(records: list[EvalRecord], skill_id: str,
+                   old_version: str, new_version: str) -> dict[str, Any]:
+    """Which questions existed in each version (from subscores seen in
+    history), plus lineage-based mapping old→new."""
+    def qids(version: str) -> set[str]:
+        out: set[str] = set()
+        for r in records:
+            if r.skill_id == skill_id and r.rubric_version == version:
+                out.update((r.subscores or {}).keys())
+        return out
+
+    old_ids, new_ids = qids(old_version), qids(new_version)
+    shared = sorted(old_ids & new_ids)
+    removed = sorted(old_ids - new_ids)
+    added = sorted(new_ids - old_ids)
+    return {
+        "shared": shared,
+        "removed": removed,
+        "added": added,
+        # lineage hint: added questions that claim an old ancestor
+        "lineage_map": {qid: list(lin) for qid, lin in
+                        _lineage_from_records(records, skill_id).items()},
+    }
+
+
+def _lineage_from_records(records: list[EvalRecord],
+                          skill_id: str) -> dict[str, tuple[str, ...]]:
+    """Best-effort lineage from history diagnostics (rubric JSON lineage
+    is authoritative; this is a fallback from recorded question ids)."""
+    lineage: dict[str, tuple[str, ...]] = {}
+    for r in records:
+        if r.skill_id != skill_id:
+            continue
+        # question ids themselves encode ancestry when renamed (Q3 → Q3b)
+        for qid in (r.subscores or {}):
+            lineage.setdefault(qid, ())
+    return lineage
+
+
+def render_migration(report: Mapping[str, Any]) -> str:
+    if report.get("note"):
+        return (f"# Migration — {report['skill_id']} "
+                f"{report['old_version']}→{report['new_version']}\n"
+                f"{report['note']}")
+    rk = report["ranking"]
+    drift = report["drift"]
+    qc = report["question_changes"]
+    lines = [
+        f"# Migration — {report['skill_id']} "
+        f"{report['old_version']} → {report['new_version']}",
+        f"paired cases: {report['n_paired']}",
+        "",
+        "## Ranking preservation (can v1 conclusions be inherited?)",
+        f"- Spearman ρ = {rk['spearman_rho']}",
+        f"- Kendall τ  = {rk['kendall_tau']}",
+        "",
+        "## Score drift",
+        f"- mean {report['old_version']} = {drift['mean_old']} → "
+        f"{report['new_version']} = {drift['mean_new']} "
+        f"(Δ = {drift['mean_delta']:+}, std = {drift['delta_std']})",
+        f"- shift type: {drift['shift_type']} "
+        f"(+{drift['n_increased']} / −{drift['n_decreased']} cases)",
+        "",
+        "## Question changes",
+        f"- removed: {qc['removed'] or '—'}",
+        f"- added:   {qc['added'] or '—'}",
+        f"- shared:  {len(qc['shared'])}",
+        "",
+        "## Large disagreements (|Δ| ≥ threshold)",
+    ]
+    if report["large_disagreements"]:
+        for d in report["large_disagreements"]:
+            lines.append(f"- {d['case_id']}: "
+                         f"{report['old_version']}={d['old']} → "
+                         f"{report['new_version']}={d['new']} (Δ{d['delta']:+})")
+    else:
+        lines.append("- none")
+    return "\n".join(lines)

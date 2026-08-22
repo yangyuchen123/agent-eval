@@ -35,13 +35,20 @@ class RubricQuestion:
     anchors: str                 # per-anchor score definitions
     evidence: str                # what the judge must quote
     weight: float = 1.0
+    # concept lineage: ids of ancestor questions this question descends
+    # from across rubric versions. Empty = this id is its own lineage.
+    # Needed by Phase 3.3 (version migration) and the future proposer.
+    lineage: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        d = {
             "id": self.id, "question": self.question,
             "anchors": self.anchors, "evidence": self.evidence,
             "weight": self.weight,
         }
+        if self.lineage:
+            d["lineage"] = list(self.lineage)
+        return d
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "RubricQuestion":
@@ -54,6 +61,7 @@ class RubricQuestion:
             anchors=str(data.get("anchors") or ""),
             evidence=str(data.get("evidence") or ""),
             weight=float(data.get("weight", 1.0)),
+            lineage=tuple(str(x) for x in (data.get("lineage") or ())),
         )
 
 
