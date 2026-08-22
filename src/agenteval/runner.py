@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
 
+from .history import EvalRecord, HistoryStore, record_from_evidence
 from .io import atomic_write_json, read_json, value_digest
 from .planner import Router
 from .protocols import Case, CaseEvidence, Plan, SkillResult
@@ -35,10 +36,18 @@ class RunConfig:
     plan_root: Path | None = None       # shared plan cache (case-level routing)
     workers: int = 1                    # >1 requires thread-safe skills
     refresh: bool = False
+    run_id: str = ""                   # history grouping key (auto if empty)
+    model_id: str = "unknown"          # recorded in history
+    history_path: Path | None = None    # default: <run_root>/history.jsonl
 
     def __post_init__(self) -> None:
         self.run_root = Path(self.run_root)
         self.plan_root = Path(self.plan_root) if self.plan_root else None
+        if not self.run_id:
+            from .history import new_run_id
+            self.run_id = new_run_id()
+        if self.history_path is None:
+            self.history_path = self.run_root / "history.jsonl"
 
 
 @dataclass
@@ -236,6 +245,7 @@ def run_eval(
     on_case: Callable[[str], None] | None = None,
 ) -> RunReport:
     report = RunReport()
+    history: list[EvalRecord] = []
     for case in cases:
         output = outputs.get(case.case_id, "")
         if not output and case.case_id not in outputs:
@@ -250,8 +260,15 @@ def run_eval(
         report.evidence[case.case_id] = evidence
         report.cache_stats.setdefault("plan_hits", 0)
         report.cache_stats["skill_hits"] = report.cache_stats.get("skill_hits", 0) + hits
+        history.extend(record_from_evidence(
+            evidence, run_id=config.run_id, model_id=config.model_id))
         if on_case is not None:
             on_case(case.case_id)
+
+    if history:
+        store = HistoryStore(config.history_path)
+        store.append(history)
+        report.cache_stats["history_records"] = len(history)
     return report
 
 

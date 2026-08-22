@@ -68,7 +68,7 @@ def main() -> None:
     run_root = Path(args.run_root)
     config = RunConfig(router=router, registry=registry, run_root=run_root,
                        plan_root=run_root.parent / "plans",
-                       workers=args.workers)
+                       workers=args.workers, model_id=label)
 
     report = run_eval(config, cases, outputs,
                       on_case=lambda cid: print(f"  ✓ {cid}"))

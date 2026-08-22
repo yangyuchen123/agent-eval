@@ -36,7 +36,7 @@ agent-improvement/
 | Phase | Layer | Question answered | Status |
 | --- | --- | --- | --- |
 | 1 | Rubric as data | How are evaluation standards defined & versioned? | ✅ done |
-| 2 | Evaluation history | What score, which rubric version, when? | ⏳ next |
+| 2 | Evaluation history | What score, which rubric version, when? | ✅ done |
 | 3 | Rubric analysis | Which questions discriminate? Which judges disagree? | planned |
 | 4 | Rubric optimization | LLM proposes rubric edits, human approves | planned |
 
@@ -54,10 +54,17 @@ Naming: we say **rubric optimization** (calibration), not "self-evolving"
 * `examples/swebench/rubrics/patch_quality.json` — domain rubric (data,
   versioned), decoupled from framework code.
 
-## Layer 2 — Evaluation history (next)
+## Layer 2 — Evaluation history (done)
 
-Simple JSONL (no DB): `run_id, case_id, skill_id, rubric_id, rubric_version,
-score, subscores, evidence, judge, timestamp`. Queryable for Phase 3.
+`src/agenteval/history.py` — append-only JSONL (no DB): `run_id, model_id,
+case_id, skill_id, rubric_id, rubric_version, score, subscores, status,
+judge, timestamp`. Runner writes it automatically; queries:
+`by_skill / by_rubric / question_stats / rubric_question_report /
+summary_by_skill` — exactly the input Phase 3 needs.
+
+Sample discrimination report on the bundled data (3 records):
+Q3_minimality std=0.20 (best discriminator), Q1/Q2/Q8/Q10 std=0
+(candidates for revision in Phase 3).
 
 ## Layer 3 — Rubric analysis (planned)
 

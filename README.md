@@ -217,3 +217,18 @@ disagreement analysis → rubric optimization) need rubrics that can be
 stored, versioned, compared and regenerated. Agent iteration/repair loops
 are intentionally **out of scope** — they are a separate consumer layer
 (see the layered design in `docs/architecture.md`).
+
+## Evaluation history (Phase 2)
+
+Every run now appends `history.jsonl` (run_root/history.jsonl): one JSONL
+record per (case, skill) with `run_id, model_id, skill_id, rubric_id,
+rubric_version, score, subscores, judge, timestamp`. Rules skills record
+rubric=None; LLM rubric skills carry their version and judge model, so
+history can answer "which rubric version produced which score, by which
+judge". Queries: `by_skill / by_rubric / question_stats /
+rubric_question_report / summary_by_skill`.
+
+The bundled data already shows the Phase-3 signal: Q3_minimality has the
+highest std (0.20 — the dimension that actually separates gold from pi),
+while Q1/Q2/Q8/Q10 are constant across agents (low discrimination →
+revision candidates).
