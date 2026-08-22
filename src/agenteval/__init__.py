@@ -4,8 +4,9 @@ Domain-agnostic core: cases, skills, routing, evidence trees and scoring.
 Evaluation cases and skills live in *case packages* outside this framework.
 """
 
-from .analysis import (judge_self_consistency, question_metrics,
-                       render_diagnostics, rubric_diagnostics)
+from .analysis import (cohen_kappa, judge_rule_agreement,
+                       judge_self_consistency, question_metrics,
+                       render_diagnostics, rubric_diagnostics, spearman)
 from .backends import LLMBackend
 from .history import (EvalRecord, HistoryStore, new_run_id,
                       question_stats, rubric_question_report,
@@ -28,7 +29,8 @@ __all__ = [
     "EvalRecord", "HistoryStore", "new_run_id",
     "question_stats", "rubric_question_report", "summary_by_skill",
     "question_metrics", "rubric_diagnostics", "render_diagnostics",
-    "judge_self_consistency",
+    "judge_self_consistency", "judge_rule_agreement",
+    "cohen_kappa", "spearman",
     "LLMRouter", "RuleRouter", "validate_plan",
     "RunConfig", "RunReport", "evaluate_one", "run_eval", "write_evidence",
     "dataset_summary", "simple_mean_case_score", "weighted_case_score",

@@ -103,3 +103,42 @@ def test_evaluator_version_recorded():
     back = EvalRecord.from_dict(d)
     assert back.evaluator_version == "2"
     assert back.judge_temperature == 0.7
+
+
+# ----------------------------------------------------- judge reliability ---
+
+def test_cohen_kappa_perfect_and_random():
+    from agenteval import cohen_kappa
+    assert cohen_kappa([1, 1, 0, 0], [1, 1, 0, 0]) == 1.0
+    # two raters each 50% pass, perfectly anti-correlated → worse than chance
+    assert cohen_kappa([1, 1, 0, 0], [0, 0, 1, 1]) < 0
+
+
+def test_spearman_perfect_and_inverse():
+    from agenteval import spearman
+    assert spearman([1, 2, 3, 4], [10, 20, 30, 40]) == 1.0
+    assert spearman([1, 2, 3, 4], [40, 30, 20, 10]) == -1.0
+
+
+def test_judge_rule_agreement_pairs_and_reports():
+    from agenteval import judge_rule_agreement
+    records = []
+    # 4 cases: judge and rule agree on 3, disagree on 1
+    for i, (js, rs) in enumerate([(0.9, 1.0), (0.8, 1.0), (0.2, 0.0), (0.4, 1.0)]):
+        records.append(EvalRecord(run_id="r", model_id="m", case_id=f"c{i}",
+                                  skill_id="judge", score=js, subscores={}))
+        records.append(EvalRecord(run_id="r", model_id="m", case_id=f"c{i}",
+                                  skill_id="rule", score=rs, subscores={}))
+    out = judge_rule_agreement(records, "judge", "rule")
+    assert out["n_paired"] == 4
+    assert out["confusion"] == {"tp": 2, "fp": 0, "fn": 1, "tn": 1}
+    # agreement on 3/4 with both having balanced rates → positive kappa
+    assert out["cohen_kappa"] is not None and out["cohen_kappa"] > 0
+    assert out["spearman_rho"] is not None
+
+
+def test_judge_rule_agreement_insufficient():
+    from agenteval import judge_rule_agreement
+    out = judge_rule_agreement([], "judge", "rule")
+    assert out["n_paired"] == 0
+    assert "cohen_kappa" not in out

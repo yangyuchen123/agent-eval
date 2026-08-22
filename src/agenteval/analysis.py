@@ -170,6 +170,103 @@ def rubric_diagnostics(records: list[EvalRecord],
 
 # -------------------------------------------------- judge reliability ------
 
+def cohen_kappa(a: list[int], b: list[int]) -> float | None:
+    """Chance-corrected agreement between two binary raters.
+
+    κ = (p_obs − p_exp) / (1 − p_exp). 1 = perfect, 0 = chance,
+    < 0 = worse than chance (systematic disagreement).
+    """
+    n = len(a)
+    if n == 0 or len(a) != len(b):
+        return None
+    agree = sum(x == y for x, y in zip(a, b)) / n
+    pa, pb = sum(a) / n, sum(b) / n
+    p_exp = pa * pb + (1 - pa) * (1 - pb)
+    if p_exp == 1.0:
+        return None
+    return round((agree - p_exp) / (1 - p_exp), 4)
+
+
+def spearman(x: list[float], y: list[float]) -> float | None:
+    """Rank correlation between two score sequences."""
+    n = len(x)
+    if n < 2 or len(x) != len(y):
+        return None
+
+    def rank(v: list[float]) -> list[float]:
+        order = sorted(range(n), key=lambda i: v[i])
+        ranks = [0.0] * n
+        i = 0
+        while i < n:
+            j = i
+            while j + 1 < n and v[order[j + 1]] == v[order[i]]:
+                j += 1
+            avg = (i + j) / 2 + 1
+            for k in range(i, j + 1):
+                ranks[order[k]] = avg
+            i = j + 1
+        return ranks
+
+    rx, ry = rank(x), rank(y)
+    mx, my = sum(rx) / n, sum(ry) / n
+    num = sum((a - mx) * (b - my) for a, b in zip(rx, ry))
+    den = (sum((a - mx) ** 2 for a in rx) ** 0.5 *
+           sum((b - my) ** 2 for b in ry) ** 0.5)
+    if den == 0:
+        return None
+    return round(num / den, 4)
+
+
+def judge_rule_agreement(
+    records: list[EvalRecord],
+    judge_skill_id: str,
+    rule_skill_id: str,
+    *,
+    judge_threshold: float = 0.5,
+) -> dict[str, Any]:
+    """Do the LLM judge and the rule-based skill agree, per case?
+
+    Pairs (case_id → judge_score, rule_score) from history, then:
+    * Cohen's κ on thresholded pass/fail verdicts;
+    * Spearman ρ on the raw scores;
+    * confusion matrix + pass rates.
+    """
+    judge = {r.case_id: float(r.score) for r in records
+             if r.skill_id == judge_skill_id and r.score is not None}
+    rule = {r.case_id: float(r.score) for r in records
+            if r.skill_id == rule_skill_id and r.score is not None}
+    cases = sorted(set(judge) & set(rule))
+    if len(cases) < 2:
+        return {"n_paired": len(cases), "note": "insufficient paired cases"}
+
+    judge_scores = [judge[c] for c in cases]
+    rule_scores = [rule[c] for c in cases]
+    judge_pass = [1 if s >= judge_threshold else 0 for s in judge_scores]
+    rule_pass = [1 if s >= 0.5 else 0 for s in rule_scores]
+
+    confusion = {"tp": 0, "fp": 0, "fn": 0, "tn": 0}
+    for jp, rp in zip(judge_pass, rule_pass):
+        if jp and rp:
+            confusion["tp"] += 1
+        elif jp and not rp:
+            confusion["fp"] += 1
+        elif not jp and rp:
+            confusion["fn"] += 1
+        else:
+            confusion["tn"] += 1
+
+    return {
+        "n_paired": len(cases),
+        "judge_skill": judge_skill_id,
+        "rule_skill": rule_skill_id,
+        "judge_pass_rate": round(sum(judge_pass) / len(judge_pass), 4),
+        "rule_pass_rate": round(sum(rule_pass) / len(rule_pass), 4),
+        "cohen_kappa": cohen_kappa(judge_pass, rule_pass),
+        "spearman_rho": spearman(judge_scores, rule_scores),
+        "confusion": confusion,
+    }
+
+
 def judge_self_consistency(records: list[EvalRecord]) -> dict[str, Any]:
     """Std of scores when the same (case, skill) was judged repeatedly.
 

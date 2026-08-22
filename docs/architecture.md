@@ -38,7 +38,7 @@ agent-improvement/
 | 1 | Rubric as data | How are evaluation standards defined & versioned? | ✅ done |
 | 2 | Evaluation history | What score, which rubric version, when? | ✅ done |
 | 3.1 | Rubric diagnostics | Which questions discriminate? (variance/entropy/corr) | ✅ done |
-| 3.2 | Judge reliability | Self-consistency, judge↔rule agreement | planned |
+| 3.2 | Judge reliability | κ / ρ / self-consistency | ✅ done |
 | 3.3 | Rubric version migration | Ranking consistency across rubric versions | planned |
 | 4 | Rubric optimization | LLM proposes rubric edits, human approves | planned |
 
@@ -80,12 +80,25 @@ Q3_minimality std=0.20 (best discriminator), Q1/Q2/Q8/Q10 std=0
 
 Human reads the report and decides; no automatic rubric generation yet.
 
-## Layer 3.2/3.3 — judge reliability & version migration (planned)
+## Layer 3.2 — judge reliability (done)
 
-* 3.2: judge self-consistency (repeated scoring std), judge↔rule agreement
-  (κ/ρ), pairwise preference validation (human prefers A, judge agrees?).
-* 3.3: when a rubric version changes, compare ranking consistency before
-  adopting the new version (evaluator_version in history makes this safe).
+`judge_rule_agreement` pairs, per case, the LLM judge score and the
+rule-based skill score from history:
+* **Cohen's κ** on thresholded pass/fail verdicts (chance-corrected);
+* **Spearman ρ** on raw scores (ranking consistency).
+
+Demonstrated: a reliable judge scores κ=1.0; a judge that always passes
+scores κ=0.0 (chance level) — κ exposes systematic leniency that plain
+accuracy hides. Boundary: with no failure samples (all cases pass), κ is
+undefined (p_exp=1) — the report says so explicitly.
+
+Self-consistency (repeated scoring std) needs multi-run data; the stub is
+in place.
+
+## Layer 3.3 — rubric version migration (planned)
+
+When a rubric version changes, compare ranking consistency before
+adopting the new version (evaluator_version in history makes this safe).
 
 ## Layer 4 — Rubric optimization (planned)
 

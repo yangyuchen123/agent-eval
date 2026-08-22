@@ -26,7 +26,8 @@ from pathlib import Path
 from typing import Any
 
 from . import score as score_mod
-from .analysis import render_diagnostics, rubric_diagnostics
+from .analysis import (judge_rule_agreement, render_diagnostics,
+                       rubric_diagnostics)
 from .history import HistoryStore
 from .planner import Router
 from .protocols import Case
@@ -123,7 +124,44 @@ def cmd_analyze(args: argparse.Namespace) -> int:
             out.write_text(json.dumps(report, ensure_ascii=False, indent=2),
                            encoding="utf-8")
             print(f"[saved] {out}")
+
+    if args.judge_skill and args.rule_skill:
+        agreement = judge_rule_agreement(records, args.judge_skill,
+                                         args.rule_skill,
+                                         judge_threshold=args.judge_threshold)
+        print("\n" + render_agreement(agreement))
     return 0
+
+
+def render_agreement(agreement: dict[str, Any]) -> str:
+    c = agreement.get("confusion")
+    lines = [
+        f"# Judge↔rule agreement — {agreement.get('judge_skill')} vs "
+        f"{agreement.get('rule_skill')}",
+        f"paired cases: {agreement.get('n_paired')}",
+        f"judge pass rate: {agreement.get('judge_pass_rate')}  "
+        f"rule pass rate: {agreement.get('rule_pass_rate')}",
+    ]
+    if agreement.get("n_paired", 0) < 2:
+        lines.append("insufficient paired cases for agreement stats")
+        return "\n".join(lines)
+    if agreement.get("cohen_kappa") is None:
+        # κ undefined (e.g. both raters always pass) but ρ may still exist
+        lines.append("κ undefined (rater marginals make p_exp = 1), "
+                     f"Spearman ρ = {agreement.get('spearman_rho')}")
+        lines.append(
+            f"confusion: TP={c['tp']} FP={c['fp']} FN={c['fn']} TN={c['tn']}")
+        return "\n".join(lines)
+    lines.append(f"Cohen's κ = {agreement['cohen_kappa']}  "
+                 f"Spearman ρ = {agreement['spearman_rho']}")
+    lines.append(
+        f"confusion: TP={c['tp']} FP={c['fp']} FN={c['fn']} TN={c['tn']}")
+    kappa = agreement["cohen_kappa"]
+    verdict = ("reliable (κ≥0.6)" if kappa >= 0.6 else
+               "weak (0.3≤κ<0.6)" if kappa >= 0.3 else
+               "unreliable (κ<0.3)")
+    lines.append(f"verdict: {verdict}")
+    return "\n".join(lines)
 
 
 def cmd_verify(args: argparse.Namespace) -> int:
@@ -177,6 +215,12 @@ def main(argv: list[str] | None = None) -> int:
                            help="pin rubric version (default: all)")
     p_analyze.add_argument("--json", default=None,
                            help="also write the report as JSON")
+    p_analyze.add_argument("--judge-skill", default=None,
+                           help="LLM skill id for judge↔rule agreement")
+    p_analyze.add_argument("--rule-skill", default=None,
+                           help="rule skill id for judge↔rule agreement")
+    p_analyze.add_argument("--judge-threshold", type=float, default=0.5,
+                           help="pass threshold for the judge score (default 0.5)")
     p_analyze.set_defaults(func=cmd_analyze)
 
     args = parser.parse_args(argv)

@@ -255,3 +255,26 @@ judge leniency); correlation with the total score disambiguates. History
 records now also carry `evaluator_version` (prompt-design version,
 independent from `rubric_version`) and `judge_temperature`, so prompt
 changes never contaminate historical data.
+
+## Judge reliability (Phase 3.2)
+
+```bash
+agenteval analyze --history run/gold/history.jsonl --history run/pi/history.jsonl \
+                  --rubric patch_quality \
+                  --judge-skill patch_quality --rule-skill test_resolution
+```
+
+Pairs the LLM judge's score with the rule-based skill's verdict per case
+and reports **Cohen's κ**(thresholded pass/fail, chance-corrected) and
+**Spearman ρ**(raw-score ranking):
+
+| κ | meaning |
+| --- | --- |
+| ≥ 0.6 | judge and rule agree beyond chance — judge is usable |
+| 0.3–0.6 | weak agreement |
+| < 0.3 | unreliable — judge has systematic bias |
+
+Demonstrated: a judge that always passes scores κ=0.0 (chance) even
+though plain agreement looks high; a reliable judge scores κ=1.0. When
+every case passes (no failure samples) κ is undefined — the report says
+so rather than inventing a number.
