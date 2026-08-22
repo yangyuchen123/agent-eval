@@ -4,6 +4,11 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-run/
-examples/demo/data/
 .pytest_cache/
+
+# 评测产物
+run/
+examples/swebench/work/          # repo checkouts (large)
+examples/swebench/node_modules/
+examples/swebench/predictions.json   # agent 产物(结果数据)
+examples/demo/data/
