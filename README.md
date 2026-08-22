@@ -189,3 +189,31 @@ python -m pytest tests/ -q        # no LLM / network required
 
 Apache-2.0. The agentified-evaluation mechanism is adapted from
 HarnessEval-W (Apache-2.0); see NOTICE.
+
+## Rubric as data (Phase 1 of rubric optimization)
+
+Rubrics are **versioned, serializable artifacts** (`Rubric` / `RubricStore`
+in `src/agenteval/rubrics.py`), not code. `FineGrainedRubric`
+(`src/agenteval/skills/rubric.py`) is the reusable base class that turns a
+question list into a full HarnessEval-style skill: analyze/verify
+two-stage, discrete score ladder, verbatim-evidence anti-fabrication,
+weighted aggregation.
+
+SWE-bench's rubric lives at `examples/swebench/rubrics/patch_quality.json`
+— a domain data file, independent of framework code. Adding a new rubric
+skill = writing a JSON file + a 15-line subclass:
+
+```python
+class MyRubricSkill(FineGrainedRubric):
+    skill_id = "my_quality"
+    role = "diagnostic"
+    question = "..."
+    rubric_path = Path(__file__).parent / "rubrics" / "my_quality.json"
+```
+
+Why data (not code): Phase 2 (evaluation history records which rubric
+version produced a score) and Phase 3 (per-question variance / judge
+disagreement analysis → rubric optimization) need rubrics that can be
+stored, versioned, compared and regenerated. Agent iteration/repair loops
+are intentionally **out of scope** — they are a separate consumer layer
+(see the layered design in `docs/architecture.md`).

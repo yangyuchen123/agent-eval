@@ -1,0 +1,72 @@
+{
+  "schema_version": "agenteval.rubric.v1",
+  "rubric_id": "patch_quality",
+  "version": "2.0.0",
+  "description": "SWE-bench patch code-review: 10 fine-grained questions with per-anchor anchors and mandatory verbatim evidence (HarnessEval-style variance control).",
+  "questions": [
+    {
+      "id": "Q1_root_cause",
+      "question": "Does the patch fix the root cause described by the issue, not a symptom?",
+      "anchors": "1.0=directly fixes the cause; 0.75=fixes cause but adds unrelated refactor; 0.5=fixes part of the cause; 0.25=masks a symptom; 0=unrelated",
+      "evidence": "Quote the exact patch lines that address the root cause"
+    },
+    {
+      "id": "Q2_localization",
+      "question": "Are changes confined to the affected files/functions the issue points at?",
+      "anchors": "1.0=only affected areas; 0.75=1 small extra file; 0.5=spread across unrelated files; 0.25=most changes unrelated; 0=touches everything",
+      "evidence": "List every file touched by the patch and note any that look unrelated"
+    },
+    {
+      "id": "Q3_minimality",
+      "question": "Is the change the smallest that fixes the issue?",
+      "anchors": "1.0=every line necessary; 0.75=minor extra; 0.5=removes/rewrites logic that was needed (e.g. deletes power handling); 0.25=large rewrite; 0=bulk change with no clear purpose",
+      "evidence": "Quote any removed/rewritten logic that may have been necessary"
+    },
+    {
+      "id": "Q4_edge_cases",
+      "question": "Does the fix handle edge cases the issue implies (inverted inputs, empties, bounds)?",
+      "anchors": "1.0=handles them explicitly; 0.75=implicitly safe; 0.5=ignores some; 0.25=breaks an edge case; 0=no edge-case thought",
+      "evidence": "Quote code that handles (or fails to handle) an edge case"
+    },
+    {
+      "id": "Q5_readability",
+      "question": "Is the new code clear and easy to follow?",
+      "anchors": "1.0=obvious intent, good naming; 0.75=minor friction; 0.5=confusing flow; 0.25=hard to follow; 0=incomprehensible",
+      "evidence": "Quote the clearest or most confusing added line"
+    },
+    {
+      "id": "Q6_style_consistency",
+      "question": "Is the patch consistent with the surrounding codebase style?",
+      "anchors": "1.0=idiomatic; 0.75=minor deviation; 0.5=notable deviation; 0.25=foreign style; 0=ignores conventions",
+      "evidence": "Quote an added line and compare with the surrounding style"
+    },
+    {
+      "id": "Q7_regression_risk",
+      "question": "Is there evidence the change does not break unrelated paths?",
+      "anchors": "1.0=isolated, clearly safe; 0.75=local, low risk; 0.5=removes shared logic; 0.25=changes hot paths; 0=obviously risky",
+      "evidence": "Quote the riskiest changed line and explain why it is or is not safe"
+    },
+    {
+      "id": "Q8_test_alignment",
+      "question": "Does the fix match what the issue promises without modifying tests?",
+      "anchors": "1.0=exactly addresses the issue, tests untouched; 0.75=addresses it but touches tests; 0.5=partial; 0.25=loosely related; 0=ignores the issue",
+      "evidence": "Quote the patch line that most directly satisfies the issue"
+    },
+    {
+      "id": "Q9_clarity_of_purpose",
+      "question": "Can a reviewer tell WHAT changed and WHY without the issue text?",
+      "anchors": "1.0=diff is self-explanatory; 0.75=mostly; 0.5=needs the issue; 0.25=opaque; 0=no discernible purpose",
+      "evidence": "State in one sentence what the diff does, from the diff alone"
+    },
+    {
+      "id": "Q10_judgeable",
+      "question": "Is the patch clear enough to judge the above questions reliably?",
+      "anchors": "1.0=fully judgeable; 0.75=mostly; 0.5=thin evidence; 0.25=almost nothing to judge; 0=empty patch",
+      "evidence": "Summarize what evidence the patch provides"
+    }
+  ],
+  "meta_questions": [
+    "Q10_judgeable"
+  ],
+  "allowed_scores": [0.0, 0.25, 0.5, 0.75, 1.0]
+}

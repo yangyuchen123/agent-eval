@@ -6,21 +6,24 @@ Evaluation cases and skills live in *case packages* outside this framework.
 
 from .backends import LLMBackend
 from .protocols import (Case, CaseEvidence, Plan, SkillResult, SkillSpec)
+from .rubrics import Rubric, RubricQuestion, RubricStore
 from .planner import LLMRouter, RuleRouter, validate_plan
 from .runner import RunConfig, RunReport, evaluate_one, run_eval, write_evidence
 from .score import (dataset_summary, simple_mean_case_score,
                     weighted_case_score)
 from .skills.base import LLMSkill, RuleSkill, Skill
 from .skills.registry import SkillRegistry
+from .skills.rubric import FineGrainedRubric
 
 __version__ = "0.1.0"
 
 __all__ = [
     "Case", "CaseEvidence", "Plan", "SkillResult", "SkillSpec",
-    "LLMBackend",
+    "LLMBackend", "Rubric", "RubricQuestion", "RubricStore",
     "LLMRouter", "RuleRouter", "validate_plan",
     "RunConfig", "RunReport", "evaluate_one", "run_eval", "write_evidence",
     "dataset_summary", "simple_mean_case_score", "weighted_case_score",
     "LLMSkill", "RuleSkill", "Skill", "SkillRegistry",
+    "FineGrainedRubric",
     "__version__",
 ]
