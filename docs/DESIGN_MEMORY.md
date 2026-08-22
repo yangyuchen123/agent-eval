@@ -10,7 +10,10 @@
 ## 0. 一分钟电梯演讲
 
 **AgentEval 是一个"自我改进的评测基础设施"(self-improving evaluation
-infrastructure),不是 agent 框架。**
+infrastructure),不是 agent 框架。它是 [HarnessEval-W](https://github.com/mirros-lab/HarnessEval-W)
+(世界模型视频评测框架)的**二开**,实际开发约两天 —— 继承其
+agentified evaluation 与 evidence-tree 思想,重构为通用框架,并新增
+rubric 数据化 / 历史 / 诊断 / 迁移 / capability 等元评测层(见 1.5 节)。**
 
 它回答的元问题是:**"如何定义、验证、改进'评价一个 agent 的标准'?"**
 ——评价标准(rubric)本身也要被评价、被诊断、被版本化、被迁移。
@@ -28,6 +31,67 @@ GDPVal(交付物 + 人类 rubric + LLM judge)。两种截然不同的评测范�
 | 3 | **案例包解耦,不进框架** | 框架零领域知识。领域案例通过 `build_registry()` / `build_router()` 注入,数据在 JSON 文件。 |
 
 命名纪律:**说 "rubric optimization / calibration",不说 "self-evolving"** ——不过度承诺。
+
+## 1.5 继承关系(★ 最重要:这是 HarnessEval-W 的二开)
+
+**agent-eval 不是从零写的。它是在 `github.com/mirros-lab/HarnessEval-W`
+(世界模型视频评测框架)基础上二开的,实际开发时间只有两天。**
+务必分清:哪些是原有的、哪些是重构的、哪些是全新开发的。
+
+### HarnessEval-W 是什么(原有,未动)
+
+原仓库是一个 **agentified evaluation** 框架:评测世界模型生成的视频
+(6 类任务:physical_transition / offscreen_evolution / drift_resistance /
+intentional_transition / exploratory_transition / return_revisit_consistency)。
+核心思想:case → LLM planner 路由 skills → 每个 skill 把评测问题分解成
+子问题 → 专用 sub-agent 打分 → 父 agent 验证证据并聚合 → **transparent
+evidence tree**(完整推理链)。
+
+原有组件(agent-eval 没有原样带进来,但思想继承):
+
+| 原组件 | 作用 |
+| --- | --- |
+| `pipeline/planner.py` | **LLM planner**:根据 case 上下文路由 skills,记录 skip 理由 |
+| `pipeline/runner.py` | SkillTask 执行(shard/phase/发布),digest 缓存 |
+| `pipeline/inventory.py` | 视频清单、manifest 加载、rollout 检查 |
+| `score.py` / `report.py` | 聚合打分、报告 |
+| `skills/`(13 个) | 领域 skills:物理合理性/运动质量/渲染质量/视图轨迹/返回一致性/… |
+| `skill_backend/` + `metric_backends/` | VLM 封装 + 度量后端(megasam/unidepth) |
+| `benchmark/` + `runs/example` | **原有数据**:世界模型视频案例 + 示例结果 |
+
+### 二开重构(改自原有,两天内完成)
+
+| agent-eval 组件 | 从原有改了什么 |
+| --- | --- |
+| `protocols.py` | Case/SkillSpec/SkillResult/Plan/CaseEvidence — 把原 dict 型数据模型重构成 frozen dataclass |
+| `skills/base.py` | Skill 基类 — 原项目 skill 是模块+契约(CacheContract),二开统一成 `RuleSkill`/`LLMSkill` 二分 + `role`(observation/core/diagnostic) |
+| `planner.py` | RuleRouter — 把原 **LLM planner** 简化为确定性规则路由(可审计,零 LLM 成本) |
+| `runner.py` | digest 缓存机制继承自原 runner/io,二开为 skill 级缓存 + 自动写 history |
+| `io.py` | atomic_write_json / value_digest 思路继承,重构实现 |
+| `backends.py` | LLMBackend 全新实现(OpenAI 兼容 + JSON mode + thinking disabled);原项目是 VLM/CLIP 构建,完全不同 |
+
+### 全新开发(二开期间新增,不属于原有)
+
+* **FineGrainedRubric + Rubric/RubricStore**(Layer 1)——把原项目 skill 内嵌的
+  rubric 机制(analyze/verify 两阶段、离散阶梯、verbatim 证据)**提炼成
+  数据驱动的可复用基类**:新领域只需声明 questions(JSON 数据)。
+  这是二开最大的增值:从"每个 skill 手写管道"到"声明即评测"。
+* **History + 诊断 + 迁移**(Layer 2-3.3)——原项目没有:history.jsonl、
+  question_metrics、cohen_kappa、migration_report 全部新增。
+* **Capability / Manifest**(Layer 3.4-3.5)——新增。
+* **CLI**(eval/analyze/migrate/verify)——新增(原项目是 python 函数式调用)。
+* **两个 benchmark 案例包**(SWE-bench 容器打分 + GDPVal)——全新领域,
+  原项目是视频评测,没有任何 agent 评测数据。
+
+### 数据来源(哪些是原有的,哪些是后加的)
+
+| 数据 | 来源 |
+| --- | --- |
+| HarnessEval-W 的 `benchmark/`(视频案例)、`runs/example`(示例结果) | **原有**(未被带入 agent-eval) |
+| `examples/swebench/instances.json`(10 实例) | **后加**:HF `princeton-nlp/SWE-bench_Verified` 拉取,挑最轻实例 |
+| `examples/swebench/rubrics/patch_quality.json` | **后加**:自写的 10 题 patch 质量 rubric(v2) |
+| `examples/gdpval/cases.json`(3 任务) | **后加**:HF `openai/gdpval` 拉取 |
+| `predictions.json`(pi 的 patch)、run/ 下 history/evidence | **后加**:pi(deepseek-v4-flash)真实运行的产物 |
 
 ## 2. 四层架构(项目骨架)
 

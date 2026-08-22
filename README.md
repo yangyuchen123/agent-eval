@@ -1,5 +1,9 @@
 # AgentEval
 
+> **项目定位**:[HarnessEval-W](https://github.com/mirros-lab/HarnessEval-W) 的二开(两天)——
+> 继承其 agentified evaluation / evidence-tree 思想,重构为通用评测框架。
+> 继承/重构/新增的边界见 [`docs/DESIGN_MEMORY.md`](docs/DESIGN_MEMORY.md) §1.5。
+
 > **恢复上下文**:先读 [`docs/DESIGN_MEMORY.md`](docs/DESIGN_MEMORY.md) —— 模块地图、设计意图、关键决策的「为什么」、踩坑史,一站式记忆恢复。
 
 
