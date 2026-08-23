@@ -27,6 +27,7 @@ GDPVal(交付物 + 人类 rubric + LLM judge)。两种截然不同的评测范�
 | # | 边界 | 理由 |
 | --- | --- | --- |
 | 1 | **Agent 自迭代闭环不进核心** | "用评测改进 agent"是上层 consumer(另一个仓库)。混进来会把 benchmark/judge/db/agent-framework 四类关注点全拉进核心。核心只负责**评测**。 |
+| 1b | **Agent runtime 也不进核心(2026-08 抽离)** | 项目只**吃 agent 产物**(JSON: patch / deliverable text)+ 评测集,再组织评测与分析。`run_pi_agent.*` / `run_pi_gdpval.*`、work/、node_modules 已删除;产物格式契约见 [`AGENT_CONTRACT.md`](AGENT_CONTRACT.md)。理由:评测必须 provider-agnostic;runtime 重(SDK/auth/网络/长生成/不稳定)不属于评测框架;runtime 的输出(JSON)是唯一接口。 |
 | 2 | **Rubric 自优化进核心** | "如何定义和改进评价标准"是 evaluation framework 的元问题,天然属于这里(Layer 1-4 演进)。 |
 | 3 | **案例包解耦,不进框架** | 框架零领域知识。领域案例通过 `build_registry()` / `build_router()` 注入,数据在 JSON 文件。 |
 

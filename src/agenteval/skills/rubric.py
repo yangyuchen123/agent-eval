@@ -40,6 +40,11 @@ class FineGrainedRubric(LLMSkill):
     """
 
     rubric: Rubric = None  # type: ignore[assignment]  # set by subclass/init
+    # evidence policy: verbatim (quote must appear byte-for-byte in the
+    # output) is the default — right for patch-style outputs (diff lines
+    # are exact). Content-style domains (GDPVal: judge quotes are
+    # semantic summaries of prose) must set this to False.
+    require_verbatim_evidence: bool = True
     # prompt/evaluator design version — independent from the rubric data
     # version (changing the judge prompt must NOT be confused with changing
     # the rubric questions)
@@ -95,7 +100,7 @@ class FineGrainedRubric(LLMSkill):
             "Expected behavior (extracted BEFORE seeing the output):\n"
             + json.dumps(analyze, ensure_ascii=False, indent=1)
             + "\n\nCase:\n" + case.task
-            + "\n\nAgent output:\n```\n" + output[:6000] + "\n```\n\n"
+            + "\n\nAgent output:\n```\n" + output[:30000] + "\n```\n\n"
             + f"Rubric (scores must be one of {allowed}):\n"
             + self._rubric_text())
         return [
@@ -161,7 +166,8 @@ class FineGrainedRubric(LLMSkill):
                 continue
             s = s if s in allowed else min(allowed, key=lambda a: abs(a - s))
             evid = str(item.get("evidence") or "").strip()
-            if (evid and not self.rubric.is_meta(q.id)
+            if (evid and self.require_verbatim_evidence
+                    and not self.rubric.is_meta(q.id)
                     and not evidence_in_patch(evid, norm_patch)):
                 fabricated.append(q.id)
                 evid = ""

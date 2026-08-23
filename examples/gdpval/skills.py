@@ -116,6 +116,12 @@ def _infer_capabilities(criterion: str) -> tuple[str, ...]:
 
 
 class GDPValJudgeSkill(FineGrainedRubric):
+    """GDPVal judge: per-task FineGrainedRubric over the task's own rubric
+    items. Evidence is semantic (judge quotes are summaries of the agent's
+    prose, not byte-exact diff lines) → verbatim enforcement off.
+    """
+
+    require_verbatim_evidence = False
     """Judge the agent's output against the task's own rubric items."""
 
     skill_id = "gdpval_judge"
