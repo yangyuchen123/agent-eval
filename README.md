@@ -4,6 +4,8 @@
 > 继承其 agentified evaluation / evidence-tree 思想,重构为通用评测框架。
 > 继承/重构/新增的边界见 [`docs/DESIGN_MEMORY.md`](docs/DESIGN_MEMORY.md) §1.5。
 
+> **接口文档**:[`docs/INTERFACES.md`](docs/INTERFACES.md) —— 评测集/产物/CLI/数据 schema,
+> 外部 agent runtime 只读 §1-2。
 > **项目职责(2026-08 更新)**:AgentEval **不运行 agent**。它吃入 agent 的
 > 产物(JSON)、评测集,然后组织评测、分析 rubric。agent runtime 已抽离
 > (见 [`docs/AGENT_CONTRACT.md`](docs/AGENT_CONTRACT.md) —— 产物格式契约)。

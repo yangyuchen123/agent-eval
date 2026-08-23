@@ -281,6 +281,8 @@ agenteval verify --cases instances.json --run-root run/pi
 环境变量:`AGENTEVAL_DOCKER`(docker.exe 路径)、`DEEPSEEK_API_KEY`、
 `AGENTEVAL_JUDGE_BASE_URL/MODEL`、`unset HF_ENDPOINT`(HF 直连)。
 
+接口总览见 [`INTERFACES.md`](INTERFACES.md)(评测集/产物/CLI/输出 schema)。
+
 ## 10. 路线图
 
 ```
