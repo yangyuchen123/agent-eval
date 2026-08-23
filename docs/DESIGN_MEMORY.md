@@ -185,10 +185,9 @@ examples/swebench/           examples/gdpval/
 │   ├── PatchAppliesSkill    │   ├── GDPValJudgeSkill (FineGrainedRubric 子类)
 │   ├── TestResolutionSkill  │   │   聚合 = 加权和(Σ满足项分值,可>1;负分=惩罚)
 │   └── PatchQualitySkill    │   └── ArtifactPresenceSkill (规则预检)
-├── container.py (docker)    ├── evaluate_gdpval.py
-├── run_pi_agent.py/.mjs     └── outputs_demo.json
-├── resolve_test_ids.py
-└── evaluate_predictions.py
+├── container.py (docker)    ├── evaluate_gdpval.py (吃产物)
+├── resolve_test_ids.py      └── outputs_demo.json
+└── evaluate_predictions.py (吃产物)
 ```
 
 ## 5. 诊断系统的逻辑(3.1-3.3 的"为什么")
