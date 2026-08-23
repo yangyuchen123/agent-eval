@@ -44,12 +44,13 @@ python evaluate_predictions.py --predictions gold --run-root run/gold
 # expected: both resolved=True (gold patches must pass their own tests)
 ```
 
-## 2. Run the real agent (pi + deepseek-v4-flash)
+## 2. Provide agent artifacts (runtime is outside this repo)
 
-```bash
-python run_pi_agent.py                        # all instances
-python run_pi_agent.py --instance sympy__sympy-24443
-# clones the repo, checks out base_commit, runs pi, saves predictions.json
+The agent runtime is NOT part of this project (see docs/AGENT_CONTRACT.md).
+Produce a `predictions.json` however you run your agent:
+
+```json
+{ "sympy__sympy-24443": { "model_patch": "diff --git a/..." } }
 ```
 
 ## 3. Score the agent's patches
