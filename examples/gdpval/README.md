@@ -28,6 +28,16 @@ Data is decoupled: `cases.json` holds prompt + rubric items + deliverable
 names for all 3 tasks. Add more by re-exporting from the HF dataset — no
 code changes.
 
+## Data provenance & license
+
+`cases.json` bundles 3 tasks re-exported from
+[`openai/gdpval`](https://huggingface.co/datasets/openai/gdpval)
+(GDPval, OpenAI). As of 2026-08 the HF dataset card does **not** declare a
+license; the bundled subset is provided for **research / demo use only**.
+Redistributing it beyond this repo, and any commercial use, is your
+responsibility to clear with the dataset owner. The framework code in this
+repo is licensed separately under Apache-2.0 (see repo `NOTICE`).
+
 ## Skills
 
 * **`GDPValJudgeSkill`** (core, LLM) — a `FineGrainedRubric` built *per

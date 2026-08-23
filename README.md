@@ -203,6 +203,22 @@ python -m pytest tests/ -q        # no LLM / network required
 Apache-2.0. The agentified-evaluation mechanism is adapted from
 HarnessEval-W (Apache-2.0); see NOTICE.
 
+## Bundled third-party data
+
+The `examples/` packages bundle **evaluation data from third parties**, which
+is separate from the framework license:
+
+* `examples/swebench/instances.json` — 2 instances from
+  [`princeton-nlp/SWE-bench_Verified`](https://huggingface.co/datasets/princeton-nlp/SWE-bench_Verified)
+  (SWE-bench, MIT). See `examples/swebench/README.md`.
+* `examples/gdpval/cases.json` — 3 tasks from
+  [`openai/gdpval`](https://huggingface.co/datasets/openai/gdpval)
+  (no license declared on the HF card as of 2026-08; research/demo use only).
+  See `examples/gdpval/README.md`.
+
+Data produced by *running* this system (run outputs, scores, evidence,
+history) belongs to the user and is not covered by any open-source grant.
+
 ## Rubric as data (Phase 1 of rubric optimization)
 
 Rubrics are **versioned, serializable artifacts** (`Rubric` / `RubricStore`

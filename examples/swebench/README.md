@@ -26,6 +26,15 @@ Data is **decoupled**: `instances.json` is plain JSON; add more instances
 by re-exporting from the HF dataset (`princeton-nlp/SWE-bench_Verified`),
 no code changes needed.
 
+## Data provenance & license
+
+`instances.json` bundles 2 instances re-exported from
+[`princeton-nlp/SWE-bench_Verified`](https://huggingface.co/datasets/princeton-nlp/SWE-bench_Verified)
+(SWE-bench). SWE-bench is released under the
+[MIT license](https://github.com/SWE-bench/SWE-bench); the bundled instances
+are redistributed under those same MIT terms. The framework code in this repo
+is licensed separately under Apache-2.0 (see repo `NOTICE`).
+
 ## 0. Prerequisites
 
 * Docker daemon (Docker Desktop on Windows works; on Linux just `docker`)
