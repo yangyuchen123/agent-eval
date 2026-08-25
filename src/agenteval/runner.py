@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import marshal
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -125,14 +126,19 @@ def _skill_impl_digest(skill: Any) -> str:
 
     This makes cached results invalidate when a skill's implementation
     changes, even if `definition_version` was not bumped."""
-    methods = ["evaluate", "messages", "parse"]
+    methods = ["evaluate", "messages", "parse", "prepare"]
     h = hashlib.sha256()
     for name in methods:
         fn = getattr(skill, name, None)
         code = getattr(fn, "__code__", None)
-        if code is not None:
-            h.update(name.encode())
-            h.update(code.co_code)
+        if code is None:
+            continue
+        h.update(name.encode())
+        # marshal includes bytecode constants and names. Hashing only
+        # ``co_code`` misses changes such as ``return 1`` -> ``return 2``.
+        h.update(marshal.dumps(code))
+        h.update(repr(getattr(fn, "__defaults__", None)).encode())
+        h.update(repr(getattr(fn, "__kwdefaults__", None)).encode())
     return h.hexdigest()[:12]
 
 

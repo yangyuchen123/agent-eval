@@ -286,3 +286,28 @@ Case(case_id=..., task=...,        # prompt(喂给 judge/agent)
 | [`AGENT_CONTRACT.md`](AGENT_CONTRACT.md) | agent 产物 JSON 格式(runtime 的输入边界) |
 | [`DESIGN_MEMORY.md`](DESIGN_MEMORY.md) | 模块地图、设计意图、踩坑史 |
 | [`architecture.md`](architecture.md) | 四层架构、继承关系 |
+
+
+## 7. Runtime adapter interface
+
+AgentEval 通过 `EvalSample` 统一 Harbor、AgentOctagon 和 JSON 导出产物。
+AgentOctagon 的数据库/attempt 适配、`octagon-score`、`octagon-eval`、
+纯 LLM judge 和混合评分见 [`RUNTIME_ADAPTERS.md`](RUNTIME_ADAPTERS.md)。
+
+最小 runtime adapter 接口：
+
+```python
+class RuntimeAdapter(Protocol):
+    name: str
+
+    def iter_samples(self) -> Sequence[EvalSample]:
+        ...
+```
+
+评分模式不是 runtime 的属性，而是 AgentEval 的 skill 配置：
+
+```text
+RuleSkill  → 确定性评分
+LLMSkill   → LLM-as-judge
+二者同时选择 → 混合评分
+```

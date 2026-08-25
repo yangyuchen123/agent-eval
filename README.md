@@ -6,9 +6,11 @@
 
 > **接口文档**:[`docs/INTERFACES.md`](docs/INTERFACES.md) —— 评测集/产物/CLI/数据 schema,
 > 外部 agent runtime 只读 §1-2。
-> **项目职责(2026-08 更新)**:AgentEval **不运行 agent**。它吃入 agent 的
-> 产物(JSON)、评测集,然后组织评测、分析 rubric。agent runtime 已抽离
-> (见 [`docs/AGENT_CONTRACT.md`](docs/AGENT_CONTRACT.md) —— 产物格式契约)。
+> **项目职责(2026-08 更新)**:AgentEval 的核心保持 runtime-neutral：它不实现 agent loop，
+> 主要消费 agent 产物并负责评测、rubric 分析和报告。对于 AgentOctagon，
+> `octagon-eval` 作为薄 HTTP 编排适配器，可以调用已启动的 AgentOctagon API 创建 run，
+> 但不在本项目内重写 runtime。跨 runtime 适配、AgentOctagon/Harbor 对接和评分模式见
+> [`docs/RUNTIME_ADAPTERS.md`](docs/RUNTIME_ADAPTERS.md)。
 >
 > **恢复上下文**:先读 [`docs/DESIGN_MEMORY.md`](docs/DESIGN_MEMORY.md) —— 模块地图、设计意图、关键决策的「为什么」、踩坑史,一站式记忆恢复。
 
@@ -88,6 +90,50 @@ run/<model-id>/
 ├── evidence/<case_id>.json   # auditable evidence trees
 └── metric_cache/…            # digest-keyed skill results (reused on re-runs)
 ```
+
+## AgentOctagon quick start
+
+AgentEval 支持 AgentOctagon 的已有 attempt 评分，以及通过 AgentOctagon HTTP API
+启动 run 后再评分：
+
+```bash
+# 已有 attempt：确定性环境 scorer
+.venv/bin/agenteval octagon-score \
+    --data-root /home/yang/agent-octagon/data \
+    --env-root /home/yang/agent-octagon-envs \
+    --env agent-workspace-smoke-test \
+    --attempt-id <attempt_id> \
+    --run-root run/octagon-deterministic
+
+# 纯 LLM-as-judge（不要求 scorer.py）
+.venv/bin/agenteval octagon-score \
+    --data-root /home/yang/agent-octagon/data \
+    --env-root /home/yang/agent-octagon-envs \
+    --env <env_name> --attempt-id <attempt_id> \
+    --judge-only \
+    --judge-base-url http://localhost:8000/v1 \
+    --judge-model <judge_model> \
+    --judge-rubric-file rubrics/<env_name>.txt \
+    --run-root run/octagon-judge
+
+# 启动 AgentOctagon run，再由 AgentEval 评分
+.venv/bin/agenteval octagon-eval \
+    --base-url http://localhost:8100 \
+    --data-root /home/yang/agent-octagon/data \
+    --env-root /home/yang/agent-octagon-envs \
+    --env agent-workspace-smoke-test \
+    --task-id agent_workspace_smoke_test_001 \
+    --agent blade-agent \
+    --model openai/gpt-5.6-luna \
+    --run-root run/octagon-eval
+```
+
+确定性评分和 LLM judge 可以通过 `--deterministic-weight` 与 `--judge-weight`
+混合。LLM judge 会收到 task、rubric、最终输出、多轮 conversation、tool calls、
+artifacts、final state，以及（如果存在）确定性 scorer 的原始分数。
+
+详细的 runtime contract、纯 Judge/混合评分、结果文件和 Harbor 对接方式见
+[`docs/RUNTIME_ADAPTERS.md`](docs/RUNTIME_ADAPTERS.md)。
 
 ## Writing your own case package (cases stay decoupled)
 
@@ -418,3 +464,49 @@ it. Default taxonomy: `software_engineering → code_reasoning /
 code_quality / ...` and `document_production → format_compliance /
 numerical_accuracy / ...`. Hierarchy rollup is deferred until more data
 exists.
+
+## Human preference → case-specific rubric
+
+AgentEval 也支持把人类偏好案例泛化为具体 case rubric：
+
+```text
+Preference examples → MetaRubric → Case Rubric → LLM judge
+```
+
+```bash
+agenteval rubric-induce \
+    --examples preferences/examples.jsonl \
+    --output rubrics/human_preference.json \
+    --base-url http://localhost:8000/v1 \
+    --model <planner-model>
+
+agenteval rubric-instantiate \
+    --meta-rubric rubrics/human_preference.json \
+    --case cases/example.json \
+    --output rubrics/example.generated.json \
+    --base-url http://localhost:8000/v1 \
+    --model <planner-model>
+```
+
+人类偏好案例记录候选答案之间的选择和理由；`MetaRubric` 保存跨 case 的
+偏好原则；生成的 `Rubric` 针对当前 case 具体化问题、anchors、权重和证据来源。
+生成结果带有 preference/rubric provenance，不能把 Planner 的临时文本当作
+不可审计的评分标准。详见 [`docs/RUNTIME_ADAPTERS.md`](docs/RUNTIME_ADAPTERS.md)。
+
+### Octagon judge 使用偏好泛化 rubric
+
+对已有的 `MetaRubric`：
+
+```bash
+agenteval octagon-score \
+  --data-root /path/to/octagon-data \
+  --env-root /path/to/agent-octagon-envs \
+  --judge-base-url "$JUDGE_BASE_URL" \
+  --judge-model "$JUDGE_MODEL" \
+  --meta-rubric rubrics/human_preference.json \
+  --generate-rubric
+```
+
+若只提供 `--preference-examples`，系统会先归纳 meta-rubric，再针对每个 case 生成
+具体 rubric。生成的 rubric 和其来源会写入每个 attempt 的 evidence；它不会被
+Planner 直接当作最终分数，最终分数仍由 LLM judge 按 case rubric 产生。

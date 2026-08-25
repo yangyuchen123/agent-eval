@@ -201,3 +201,36 @@ def test_backend_json_parsing():
     assert _parse_json('prefix {"a": 1} suffix') == {"a": 1}
     with pytest.raises(Exception):
         _parse_json("not json")
+
+
+def test_case_context_is_serialized_in_evidence_and_invalidates_cache(tmp_path):
+    class ContextSkill(RuleSkill):
+        skill_id = "context_skill"
+        role = "core"
+        question = "reads evaluator context"
+        definition_version = "test.context.v1"
+
+        def evaluate(self, case: Case, output: str) -> SkillResult:
+            value = float(case.context["reward"])
+            return SkillResult(skill_id=self.skill_id, status="ok", score=value)
+
+    registry = SkillRegistry()
+    registry.register(ContextSkill())
+
+    def route(case, catalog):
+        return Plan(
+            case_id=case.case_id,
+            selected_skills=({"skill_id": "context_skill", "role": "core",
+                              "reason": "context", "parameters": {}},),
+            skipped_skills=(),
+        )
+
+    config = RunConfig(router=RuleRouter(route), registry=registry,
+                       run_root=tmp_path / "run")
+    first = run_eval(config, [Case("c", "task", context={"reward": 0.0})], {"c": "x"})
+    second = run_eval(config, [Case("c", "task", context={"reward": 1.0})], {"c": "x"})
+
+    assert first.evidence["c"].skill_results["context_skill"].score == 0.0
+    assert second.evidence["c"].skill_results["context_skill"].score == 1.0
+    assert second.cache_stats.get("skill_hits", 0) == 0
+    assert second.evidence["c"].case["context"] == {"reward": 1.0}

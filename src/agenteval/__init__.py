@@ -10,6 +10,8 @@ from .analysis import (capability_report, cohen_kappa,
                        render_capability_report, render_diagnostics,
                        render_migration, rubric_diagnostics, spearman)
 from .backends import LLMBackend
+from .adapters import (AgentIdentity, AgentOctagonAdapter, AgentOctagonRuntimeClient, AgentOctagonRuntimeError, ArtifactRef, ConversationTurn, EvalSample, OctagonEnvironmentSkill, OctagonLLMJudgeSkill, OctagonScorerBridge, OctagonScorerError, score_octagon_samples,
+                       JsonRuntimeAdapter, RuntimeAdapter, ToolCall)
 from .capabilities import Capability, CapabilityStore, DEFAULT_TAXONOMY
 from .history import (EvalRecord, HistoryStore, new_run_id,
                       question_stats, rubric_question_report,
@@ -18,6 +20,8 @@ from .manifest import (EvaluationRun, build_manifest, evaluator_snapshot,
                        load_manifest, write_manifest)
 from .protocols import (Case, CaseEvidence, Plan, SkillResult, SkillSpec)
 from .rubrics import Rubric, RubricQuestion, RubricStore
+from .preferences import MetaPrinciple, MetaRubric, PreferenceExample, PreferenceStore
+from .rubric_planner import RubricPlanner, RubricPlannerError
 from .planner import LLMRouter, RuleRouter, validate_plan
 from .runner import RunConfig, RunReport, evaluate_one, run_eval, write_evidence
 from .score import (dataset_summary, simple_mean_case_score,
@@ -30,7 +34,9 @@ __version__ = "0.1.0"
 
 __all__ = [
     "Case", "CaseEvidence", "Plan", "SkillResult", "SkillSpec",
-    "LLMBackend", "Rubric", "RubricQuestion", "RubricStore",
+    "AgentIdentity", "AgentOctagonAdapter", "AgentOctagonRuntimeClient", "AgentOctagonRuntimeError", "ArtifactRef", "ConversationTurn", "EvalSample", "OctagonEnvironmentSkill", "OctagonLLMJudgeSkill", "OctagonScorerBridge", "OctagonScorerError", "score_octagon_samples",
+    "JsonRuntimeAdapter", "RuntimeAdapter", "ToolCall",
+    "LLMBackend", "Rubric", "RubricQuestion", "RubricStore", "PreferenceExample", "PreferenceStore", "MetaPrinciple", "MetaRubric", "RubricPlanner", "RubricPlannerError",
     "Capability", "CapabilityStore", "DEFAULT_TAXONOMY",
     "EvaluationRun", "build_manifest", "evaluator_snapshot",
     "load_manifest", "write_manifest",

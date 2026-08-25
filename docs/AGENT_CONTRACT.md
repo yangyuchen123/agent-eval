@@ -1,8 +1,12 @@
-# Agent artifact contract — how agent outputs enter AgentEval
+# Agent artifact contract — how runtime outputs enter AgentEval
 
-AgentEval does **not** run agents. It consumes their artifacts. This
-boundary is the whole point: the framework evaluates and analyzes, the
-agent runtime lives elsewhere (a separate repo, CI, or any model provider).
+AgentEval 的核心不实现 agent loop，也不依赖某个 runtime。它消费 runtime
+产物并执行评测。对于 AgentOctagon，`octagon-eval` 可以通过公开 HTTP API
+创建/等待 run，但仍由 AgentOctagon 负责真正的 agent 执行；对于 Harbor，
+可以通过 JSON 导出或实现 `RuntimeAdapter` 接入。
+
+评测核心的输入边界仍然是 runtime 产物：runtime 负责运行，AgentEval
+负责将产物规范化、运行 RuleSkill/LLMSkill、保存 evidence 和生成报告。
 
 ```
 agent runtime (OUTSIDE this repo)          AgentEval (this repo)
@@ -55,7 +59,14 @@ python examples/gdpval/evaluate_gdpval.py \
     --agent-name pi --agent-version v1
 ```
 
-## Where the runtime used to live (removed)
+## Runtime ownership
+
+Runtime remains outside the AgentEval core. The adapter layer is intentionally
+read-only for persisted runs and only the AgentOctagon HTTP client performs
+transport-level run orchestration. It does not import or reimplement the
+AgentOctagon runner.
+
+## Where the legacy example runtime used to live (removed)
 
 * `examples/swebench/run_pi_agent.{py,mjs}` — drove pi (pi SDK +
   deepseek-v4-flash) on the host to produce patches

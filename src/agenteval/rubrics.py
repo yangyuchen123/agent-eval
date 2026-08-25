@@ -44,6 +44,9 @@ class RubricQuestion:
     # reports aggregate questions across benchmarks by these tags — this
     # is the abstraction that makes cross-benchmark analysis meaningful.
     capabilities: tuple[str, ...] = ()
+    # Generated-rubric provenance: which meta-principles justify this question?
+    source_principles: tuple[str, ...] = ()
+    case_adaptation: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         d = {
@@ -55,6 +58,10 @@ class RubricQuestion:
             d["lineage"] = list(self.lineage)
         if self.capabilities:
             d["capabilities"] = list(self.capabilities)
+        if self.source_principles:
+            d["source_principles"] = list(self.source_principles)
+        if self.case_adaptation:
+            d["case_adaptation"] = self.case_adaptation
         return d
 
     @classmethod
@@ -70,6 +77,8 @@ class RubricQuestion:
             weight=float(data.get("weight", 1.0)),
             lineage=tuple(str(x) for x in (data.get("lineage") or ())),
             capabilities=tuple(str(x) for x in (data.get("capabilities") or ())),
+            source_principles=tuple(str(x) for x in (data.get("source_principles") or ())),
+            case_adaptation=str(data.get("case_adaptation") or ""),
         )
 
 
@@ -89,6 +98,9 @@ class Rubric:
     meta_questions: frozenset[str] = frozenset()
     allowed_scores: tuple[float, ...] = DEFAULT_ALLOWED_SCORES
     score_schema: str = RUBRIC_SCHEMA
+    # Provenance for generated rubrics: source meta-rubric, preference examples,
+    # and case adaptation decisions. Kept optional for backward compatibility.
+    provenance: dict[str, Any] = field(default_factory=dict)
 
     # ------------------------------------------------------------ data ----
     def to_dict(self) -> dict[str, Any]:
@@ -100,6 +112,7 @@ class Rubric:
             "questions": [q.to_dict() for q in self.questions],
             "meta_questions": sorted(self.meta_questions),
             "allowed_scores": list(self.allowed_scores),
+            "provenance": self.provenance,
         }
 
     @classmethod
@@ -121,6 +134,7 @@ class Rubric:
             questions=questions,
             meta_questions=frozenset(str(x) for x in (data.get("meta_questions") or [])),
             allowed_scores=allowed,
+            provenance=dict(data.get("provenance") or {}),
         )
 
     # ---------------------------------------------------------- helpers ----

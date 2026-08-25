@@ -48,6 +48,11 @@ class Case:
             "case_id": self.case_id,
             "task": self.task,
             "expected": self.expected,
+            # context contains evaluator-only resources such as runtrace,
+            # artifact manifests, and environment snapshots. It must be
+            # serialized so evidence and cache digests reflect the full
+            # evaluation input.
+            "context": self.context,
             "metadata": self.metadata,
         }
 
