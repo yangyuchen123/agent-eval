@@ -263,6 +263,18 @@ class AgentOctagonAdapter:
                     "context": _safe_json(row.get("context_json")),
                     "constraints": _safe_json(row.get("constraints_json")),
                 },
+                # Portable references are consumed by an independent Judge;
+                # AgentEval does not interpret the evidence behind them.
+                "attempt_ref": {
+                    "scheme": "agent-octagon",
+                    "attempt_id": attempt_id,
+                    "run_id": row.get("run_id"),
+                },
+                "artifact_ref": {
+                    "scheme": "agent-octagon",
+                    "attempt_id": attempt_id,
+                    "workspace": "skill_workspace",
+                },
                 "attempt_dir": str(attempt_dir),
                 "trace": trace,
                 "events": events,

@@ -291,8 +291,9 @@ Case(case_id=..., task=...,        # prompt(喂给 judge/agent)
 ## 7. Runtime adapter interface
 
 AgentEval 通过 `EvalSample` 统一 Harbor、AgentOctagon 和 JSON 导出产物。
-AgentOctagon 的数据库/attempt 适配、`octagon-score`、`octagon-eval`、
-纯 LLM judge 和混合评分见 [`RUNTIME_ADAPTERS.md`](RUNTIME_ADAPTERS.md)。
+由 `eval-system` 产出的 AgentOctagon/Harbor attempt 适配、`octagon-score`、JudgeClient、
+纯 Judge 和混合评分见 [`RUNTIME_ADAPTERS.md`](RUNTIME_ADAPTERS.md) 与
+[`SYSTEM_BOUNDARIES.md`](SYSTEM_BOUNDARIES.md)。
 
 最小 runtime adapter 接口：
 

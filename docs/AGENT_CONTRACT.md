@@ -1,12 +1,13 @@
 # Agent artifact contract — how runtime outputs enter AgentEval
 
-AgentEval 的核心不实现 agent loop，也不依赖某个 runtime。它消费 runtime
-产物并执行评测。对于 AgentOctagon，`octagon-eval` 可以通过公开 HTTP API
-创建/等待 run，但仍由 AgentOctagon 负责真正的 agent 执行；对于 Harbor，
-可以通过 JSON 导出或实现 `RuntimeAdapter` 接入。
+AgentEval 的核心不实现 agent loop，也不负责收集 runtime。运行 agent、创建/等待 run、
+保存 attempt 和 runtrace 属于前置的 `eval-system`。AgentEval 消费由 eval-system
+产出的 runtime 产物。对于 AgentOctagon/Harbor，可以通过 JSON/archive 或实现
+`RuntimeAdapter` 接入。
 
-评测核心的输入边界仍然是 runtime 产物：runtime 负责运行，AgentEval
-负责将产物规范化、运行 RuleSkill/LLMSkill、保存 evidence 和生成报告。
+评测核心的输入边界仍然是 runtime 产物：eval-system 负责运行和采集，AgentEval
+负责将产物规范化、组织 RuleSkill/LLM Judge skill、聚合分数和生成报告。
+证据检索和 Judge policy 属于独立 Judge 项目；AgentEval 只通过 JudgeClient 契约调用它。
 
 ```
 agent runtime (OUTSIDE this repo)          AgentEval (this repo)
@@ -61,10 +62,11 @@ python examples/gdpval/evaluate_gdpval.py \
 
 ## Runtime ownership
 
-Runtime remains outside the AgentEval core. The adapter layer is intentionally
-read-only for persisted runs and only the AgentOctagon HTTP client performs
-transport-level run orchestration. It does not import or reimplement the
-AgentOctagon runner.
+Runtime remains outside the AgentEval core. `eval-system` owns execution and
+collection. AgentEval adapters are read-only consumers of persisted attempts;
+they do not start agents, poll runtime runs, or reimplement Harbor/AgentOctagon.
+A Judge integration receives references to the collected trace/artifacts and
+returns a score; evidence retrieval remains inside the independent Judge.
 
 ## Where the legacy example runtime used to live (removed)
 
@@ -84,3 +86,6 @@ All removed. If you need to regenerate artifacts, drive the agent from
   generation times, instability) — none of that belongs in an evaluation
   framework;
 * the *output* of the runtime is the only interface, and it is just JSON.
+
+
+See [`SYSTEM_BOUNDARIES.md`](SYSTEM_BOUNDARIES.md) for the eval-system → AgentEval → Agent Judge boundary.

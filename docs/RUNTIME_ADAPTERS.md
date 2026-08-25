@@ -1,16 +1,18 @@
-# Runtime adapters and AgentOctagon evaluation
+# Runtime adapters: eval-system artifacts into AgentEval
 
-本文档说明 AgentEval 如何与 AgentOctagon、Harbor 等 agent runtime 对接，以及如何把运行结果交给确定性 scorer、LLM-as-judge 或两者的组合。
+本文档说明 AgentEval 如何读取由 `eval-system` 收集的 AgentOctagon、Harbor 等 runtime 产物，并将其交给确定性 scorer、独立 Judge 或两者的组合。运行 agent、收集 runtime 和证据系统不属于本文档的 AgentEval 职责。
 
 ## 1. 设计边界
 
-AgentEval 的核心不实现 agent loop，也不替代 Harbor/AgentOctagon 的 runtime。它负责：
+AgentEval 的核心不实现 agent loop，也不替代 `eval-system`、Harbor 或 AgentOctagon。它负责：
 
-1. 接收 runtime 产物；
+1. 接收 `eval-system` 产出的 runtime 产物；
 2. 将不同 runtime 的产物转换为统一的 `EvalSample`；
 3. 根据 case 和 rubric 选择评测 skills；
-4. 运行确定性评分和/或 LLM judge；
-5. 保存 evidence、history、manifest 和 leaderboard。
+4. 调用环境 deterministic scorer 或独立 Judge；
+5. 聚合分数并保存 AgentEval 自己的 history、manifest 和 leaderboard。
+
+Evidence retrieval、evidence chain 和 Judge policy 属于独立 Judge 项目。
 
 ```
 Harbor / AgentOctagon runtime
@@ -30,7 +32,7 @@ EvalSample
         AgentEval report
 ```
 
-`octagon-eval` 是一个薄的运行编排入口：它通过 AgentOctagon 的公开 HTTP API 创建 run、轮询状态，然后仍然通过 `AgentOctagonAdapter` 和 AgentEval scorer pipeline 评分。AgentEval 不在本地重新实现 AgentOctagon 的执行逻辑。
+历史版本中的 `octagon-eval` 是兼容性编排入口，不代表目标架构。当前目标是由 `eval-system` 创建/运行 AgentOctagon 或 Harbor attempt，完成后由 AgentEval 读取 attempt 并评分。AgentEval 不启动 agent、不轮询 runtime，也不在本地重新实现 runtime。
 
 ## 2. 统一数据模型
 
@@ -127,10 +129,10 @@ def score(
 适用于环境没有确定性 scorer，或任务本身主要依赖 rubric 语义判断的情况。
 
 ```text
-OctagonLLMJudgeSkill (LLMSkill)
-    → case + rubric + attempt evidence
-    → LLMBackend
-    → SkillResult.score ∈ [0, 1]
+AgentEval JudgeClientSkill
+    → JudgeRequest(case + rubric + trace/artifact references)
+    → independent Agent Judge
+    → JudgeResponse → SkillResult.score ∈ [0, 1]
 ```
 
 此模式不要求 `scorer.py`：
@@ -200,17 +202,16 @@ weighted_case_score
   --run-root run/octagon-hybrid
 ```
 
-混合模式中，LLM judge 会收到：
+混合模式中，AgentEval 向独立 Judge 发送：
 
-- task/case/expected/metadata；
+- task/case/metadata；
+- case-specific rubric；
 - agent 的最终输出；
-- 多轮 conversation；
-- tool calls 和 runtime events；
-- artifact 引用；
-- final state；
+- `trace_ref` / `artifact_ref`；
 - 确定性 scorer 的原始维度、分数和理由。
 
-确定性分数是**证据**，不是 prompt 中必须照抄的答案。Judge 可以保持、补充或纠正它，但两种结果都保留在 evidence 中。
+Judge 如何查询 trace、组织 evidence chain 和决定语义分数不属于 AgentEval。确定性分数是
+JudgeRequest 中的证据之一，不是必须照抄的答案；两种结果都由 AgentEval 分开保存。
 
 默认权重：
 
@@ -221,49 +222,43 @@ judge_weight         = 0.5   # 只有提供 --judge-model 时才启用 judge ski
 
 不提供 `--judge-model` 时，实际只运行确定性 skill，保持向后兼容。
 
-## 4. AgentOctagon runtime 编排
+## 4. 与 eval-system 的集成
 
-AgentOctagon API 服务启动后，可以让 AgentEval 创建并等待 run：
-
-```bash
-.venv/bin/agenteval octagon-eval \
-  --base-url http://localhost:8100 \
-  --data-root /home/yang/agent-octagon/data \
-  --env-root /home/yang/agent-octagon-envs \
-  --env agent-workspace-smoke-test \
-  --task-id agent_workspace_smoke_test_001 \
-  --agent blade-agent \
-  --model openai/gpt-5.6-luna \
-  --wait-timeout 3600 \
-  --poll-interval 5 \
-  --run-root run/octagon-eval
-```
-
-流程：
+运行 agent、创建/等待 AgentOctagon 或 Harbor run、收集 attempt 和保存 runtime trace
+由前置的 `eval-system` 负责。AgentEval 从已经完成的 attempt 读取：
 
 ```text
-POST /api/runs
-    ↓
-GET /api/runs/{run_id} 轮询
-    ↓
-AgentOctagonAdapter(data_root, run_id=run_id)
-    ↓
-环境 scorer / LLM judge
-    ↓
-summary.json + evidence + leaderboard
+eval-system
+  → completed attempt / trace references
+  → AgentOctagonAdapter 或 HarborAdapter
+  → EvalSample
+  → AgentEval skill/rubric plan
+  → deterministic scorer / JudgeClient
+  → AgentEval report
 ```
 
-多个 agent：
+典型流程：
 
 ```bash
-.venv/bin/agenteval octagon-eval \
-  ... \
-  --agent blade-agent \
-  --agent codex \
-  --models-json '{"blade-agent":"model-a","codex":"model-b"}'
+# 1. 由 eval-system 运行 agent 并保存 attempt
+eval-system run \
+  --runtime agent-octagon \
+  --env <env_name> \
+  --task-id <task_id> \
+  --agent <agent> \
+  --output /path/to/attempt
+
+# 2. AgentEval 只读取已经完成的 attempt 并评分
+.venv/bin/agenteval octagon-score \
+  --data-root /path/to/eval-system/data \
+  --env-root /path/to/agent-octgan-envs \
+  --env <env_name> \
+  --attempt-id <attempt_id> \
+  --run-root run/octagon-score
 ```
 
-重要：`data-root` 必须与 AgentOctagon server 使用同一个数据目录，否则 run 已完成但 adapter 找不到 attempts。
+仓库中历史版本的 `octagon-eval` 仍可能存在，用于兼容旧的 HTTP 编排流程；它不是
+当前目标架构，也不应继续扩展为 AgentEval 的 runtime runner。
 
 ## 5. 结果文件
 
@@ -344,16 +339,16 @@ EvalSample → RuleSkill / LLMSkill → evidence/report
 - [ ] 确定性模式下存在可加载的 `scorer.py`；
 - [ ] 纯 Judge 模式下提供 `--judge-model`、`--judge-base-url` 和 rubric；
 - [ ] scorer 的依赖在当前 Python 环境可用；
-- [ ] AgentOctagon API 已启动（仅 `octagon-eval` 需要）；
+- [ ] `eval-system` 已完成 agent run，并且 attempt/trace 已落盘；
 - [ ] agent provider、API key、模型配置可用；
 - [ ] 多轮环境的 conversation/events/final_state 已落盘；
 - [ ] 需要外部服务的环境已启动其依赖。
 
 “任意环境支持”的准确含义是：
 
-> 任意符合 AgentOctagon task/attempt 数据契约、并且满足确定性 scorer 或 LLM judge 配置的环境，都可以通过同一套 AgentEval pipeline 运行和评分。
+> 任意符合 `eval-system` 导出契约、并且满足确定性 scorer 或 JudgeClient 配置的环境，都可以通过同一套 AgentEval pipeline 读取和评分。
 
-它不意味着 AgentEval 会自动猜测环境的私有 scorer 签名、安装环境专属依赖或替代 runtime 的外部服务。
+它不意味着 AgentEval 会自动运行 agent、猜测环境的私有 scorer 签名、安装环境专属依赖或替代 runtime 的外部服务。
 
 ## 8. Human preference → case rubric
 
@@ -464,22 +459,35 @@ API key 只应通过环境变量传入，不要写入命令历史、仓库或评
 
 ### 8.2 Judge evidence-chain requirements
 
-Octagon 的 judge 不应只收到最终 artifact 摘要。适配层现在会向 judge 提供一个有界的
-execution evidence chain：
+Octagon 的 judge 不应只收到最终 artifact 摘要，也不应把完整 `events.jsonl` 直接塞进
+prompt。适配层会先建立 runtime-neutral 的 evidence index：
 
-- trace 中的 Agent dispatch 参数和返回结果；
-- tool-call ID、agent loop、耗时和错误状态；
-- 所有 `agent:start` / `agent:end` 生命周期事件；
-- 优先保留的 completed tool-result 事件；
-- workspace 文件、conversation、runtime result 和确定性评分。
+- 保留工具调用的参数、完成结果、tool-call ID、agent identity、时间和错误；
+- 保留完成的 lifecycle/message 记录；
+- 排除 `llm:content:delta`、`llm:tool_call:created` 等重复的流式增量；
+- 给每条记录分配稳定的 `evidence_id`（例如 `trace.jsonl:42`）；
+- prompt 只发送记录数量、来源、类型和查询说明，不发送全部证据正文。
 
-这是必要的，因为仅把 `coordination_log.json` 交给 judge 会把过程证据变成 agent
-自己的 retrospective self-report。完整原始事件流可能很大，因此适配层只发送有界的
-结构化摘要，不直接发送全部 token delta。
+judge 通过 OpenAI-compatible function tool `grep_runtime_evidence` 按需查证：
+
+```json
+{
+  "pattern": "security|handoff|wait",
+  "source": "trace.jsonl",
+  "agent_id": "optional-agent-id",
+  "limit": 12
+}
+```
+
+工具返回带 `evidence_id` 的 bounded snippets，保留匹配记录中的 arguments、result、
+content、身份和时间。judge 应先 grep 再对 assignment、dependency gate、handoff、
+acceptance 或 repair 做事实性判断；找不到证据时只能标记为 `unverified`，不能把
+retrospective `coordination_log.json` 当成运行时事实。这样既保留了可审计的语义 content，
+也不会让重复 delta 主导 prompt 或 token 成本。
 
 当前仍建议进一步把每个 case rubric question 转换成结构化 judge answer，并由
 AgentEval 根据 question weights 计算最终分数。否则模型仍可以自由决定 subscore key
-和整体 score，证据链虽然完整，聚合仍可能波动。
+和整体 score，证据链虽然可查询，聚合仍可能波动。
 
 ### 8.3 Semantic runtrace 输入层
 
@@ -509,3 +517,57 @@ Semantic runtrace 会经过 runtime-neutral 的 prompt-size projection：只对�
 嵌套深度和字符串长度做通用边界处理，不引入某一种评测任务的字段语义。完整归档
 信息仍保留在原始 `trajectory.json` / `wire.jsonl` 文件中。目标是让普通 judge prompt
 保持在约 100 KB 以内。
+
+
+### 8.4 AgentEval Judge transport
+
+AgentEval 提供一个纯 transport 层的 `HttpJudgeClient`：
+
+```python
+HttpJudgeClient(
+    "http://judge-service",
+    endpoint="/v1/judge/evaluate",
+    api_key=os.environ.get("JUDGE_API_KEY"),
+)
+```
+
+默认请求路径是：
+
+```text
+POST /v1/judge/evaluate
+```
+
+它只负责发送 `JudgeRequest`、解析 `JudgeResponse` 和记录 transport provenance；
+它不实现证据查询或 judge tool loop。该路径是独立 Judge 的接入协议建议，不表示本仓库
+内置了 Judge 服务。
+
+## 9. Integration with eval-system and the independent Judge
+
+目标数据流：
+
+```text
+eval-system
+  → completed attempt / trace references
+  → AgentOctagonAdapter or HarborAdapter
+  → EvalSample
+  → dynamic rubric + skill plan
+  → JudgeClient (optional)
+  → score aggregation and AgentEval report
+```
+
+AgentEval 不应直接 import Judge 的 EvidenceCatalog、evidence tools 或 judge session。
+Judge 自己使用 PydanticAI 管理 model/tool loop；EvidenceProvider 和 evidence policy 由独立 Judge 管理；`eval-system` 不托管 Judge。
+推荐的最小边界是：
+
+```python
+class JudgeClient(Protocol):
+    def evaluate(self, request: JudgeRequest) -> JudgeResponse: ...
+```
+
+`JudgeRequest` 传递 case、rubric、最终输出和 trace/artifact reference；
+`JudgeResponse` 返回 score、subscores、reasons、confidence、evidence references 和 provenance。
+
+AgentEval 侧的正式薄接口是 `src/agenteval/judge.py` 中的 `JudgeRequest`、
+`JudgeResponse`、`JudgeClient` 和 `JudgeClientSkill`。当前仓库中的
+`OctagonLLMJudgeSkill`、`RuntimeEvidenceIndex` 和 tool-loop 属于过渡性原型，
+用于验证接口，不是长期的 AgentEval 核心边界。

@@ -12,7 +12,7 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from .io import value_digest
 
@@ -53,7 +53,7 @@ class LLMBackend:
 
     # ------------------------------------------------------- wire --------
 
-    def _targets_and_body(self, messages: list[dict[str, Any]]) -> tuple[list[str], dict[str, Any]]:
+    def _targets_and_body(self, messages: list[dict[str, Any]], *, tools: list[dict[str, Any]] | None = None) -> tuple[list[str], dict[str, Any]]:
         if self.wire_api in {"responses", "response"}:
             urls = [self.base_url] if self.base_url.endswith("/responses") else [
                 f"{self.base_url}/responses", f"{self.base_url}/v1/responses"]
@@ -71,7 +71,10 @@ class LLMBackend:
                 "temperature": self.temperature, "max_tokens": self.max_tokens,
                 **self.extra_body,
             }
-            if self.json_mode:
+            if tools:
+                body["tools"] = tools
+                body["tool_choice"] = "auto"
+            if self.json_mode and not tools:
                 body["response_format"] = {"type": "json_object"}
         return urls, body
 
@@ -141,6 +144,94 @@ class LLMBackend:
                 "attempts": attempts,
             },
         }
+
+
+    def infer_with_tools(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        tools: list[dict[str, Any]],
+        tool_handler: Callable[[str, dict[str, Any]], dict[str, Any]],
+        max_rounds: int = 8,
+    ) -> dict[str, Any]:
+        """Run a bounded chat-completions tool loop.
+
+        Tools are intentionally supplied by the caller.  The backend only
+        transports tool calls and appends tool results; it never interprets
+        evaluation evidence or runtime-specific semantics.
+        """
+        if self.wire_api not in {"chat", "chat_completions", "chat/completions"}:
+            raise RuntimeError("tool loops currently require a chat-completions backend")
+        current = [dict(message) for message in messages]
+        started = time.monotonic()
+        attempts: list[dict[str, Any]] = []
+        tool_calls: list[dict[str, Any]] = []
+        for _ in range(max(1, max_rounds)):
+            urls, body = self._targets_and_body(current, tools=tools)
+            response = None
+            request_url = None
+            last_error = None
+            for url in urls:
+                for attempt in range(1, max(1, self.retries + 1) + 1):
+                    try:
+                        status, data = self._post(url, body)
+                        error = None
+                    except (TimeoutError, urllib.error.URLError, json.JSONDecodeError) as exc:
+                        status, data, error = None, {}, repr(exc)
+                    attempts.append({"attempt": attempt, "url": url, "status_code": status,
+                                     "error": error,
+                                     "elapsed_seconds": round(time.monotonic() - started, 6)})
+                    if status is not None and status < 400:
+                        response, request_url = data, url
+                        break
+                    last_error = error or json.dumps(data, ensure_ascii=False)[:1000]
+                    if status is not None and status not in RETRYABLE_STATUS_CODES:
+                        break
+                    if attempt <= self.retries:
+                        time.sleep(min(0.5 * (2 ** (attempt - 1)), 8.0)
+                                   + random.uniform(0.0, 0.25))
+                if response is not None:
+                    break
+                if attempts and attempts[-1]["status_code"] not in {404, 405}:
+                    break
+            if response is None:
+                raise RuntimeError(f"LLM request failed: {last_error}")
+            choices = response.get("choices") or []
+            message = choices[0].get("message") if choices and isinstance(choices[0], Mapping) else None
+            if not isinstance(message, Mapping):
+                raise RuntimeError("tool-loop response contains no chat message")
+            calls = message.get("tool_calls") or []
+            if not calls:
+                raw_text = _response_text(response)
+                return {
+                    "parsed": _parse_json(raw_text) if self.json_mode else {"text": raw_text},
+                    "raw_output_text": raw_text,
+                    "response_metadata": {
+                        "id": response.get("id"), "model": response.get("model"),
+                        "usage": response.get("usage"), "request_url": request_url,
+                        "elapsed_seconds": round(time.monotonic() - started, 6),
+                        "attempts": attempts, "tool_calls": tool_calls,
+                    },
+                }
+            current.append(dict(message))
+            for call in calls:
+                function = call.get("function") if isinstance(call, Mapping) else None
+                if not isinstance(function, Mapping):
+                    continue
+                name = str(function.get("name") or "")
+                raw_args = function.get("arguments") or "{}"
+                try:
+                    args = json.loads(raw_args) if isinstance(raw_args, str) else dict(raw_args)
+                except (json.JSONDecodeError, TypeError, ValueError):
+                    args = {"pattern": str(raw_args)}
+                if not isinstance(args, dict):
+                    args = {"pattern": str(args)}
+                result = tool_handler(name, args)
+                call_id = str(call.get("id") or "")
+                tool_calls.append({"name": name, "arguments": args, "result": result})
+                current.append({"role": "tool", "tool_call_id": call_id,
+                                "content": json.dumps(result, ensure_ascii=False)})
+        raise RuntimeError("judge exceeded max tool rounds")
 
 
 # --------------------------------------------------------- helpers -------

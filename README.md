@@ -6,10 +6,10 @@
 
 > **接口文档**:[`docs/INTERFACES.md`](docs/INTERFACES.md) —— 评测集/产物/CLI/数据 schema,
 > 外部 agent runtime 只读 §1-2。
-> **项目职责(2026-08 更新)**:AgentEval 的核心保持 runtime-neutral：它不实现 agent loop，
-> 主要消费 agent 产物并负责评测、rubric 分析和报告。对于 AgentOctagon，
-> `octagon-eval` 作为薄 HTTP 编排适配器，可以调用已启动的 AgentOctagon API 创建 run，
-> 但不在本项目内重写 runtime。跨 runtime 适配、AgentOctagon/Harbor 对接和评分模式见
+> **项目职责(2026-08 更新)**:AgentEval 是评测编排壳：消费由 `eval-system` 收集的 agent
+> runtime 产物，动态组织 case-specific rubric 和 skills，调用 deterministic scorer 或独立
+> Judge，并生成评分报告。它不运行 agent、不收集 runtime、不实现 evidence retrieval 或 judge
+> policy。三层系统边界见 [`docs/SYSTEM_BOUNDARIES.md`](docs/SYSTEM_BOUNDARIES.md)；runtime 适配见
 > [`docs/RUNTIME_ADAPTERS.md`](docs/RUNTIME_ADAPTERS.md)。
 >
 > **恢复上下文**:先读 [`docs/DESIGN_MEMORY.md`](docs/DESIGN_MEMORY.md) —— 模块地图、设计意图、关键决策的「为什么」、踩坑史,一站式记忆恢复。
@@ -52,6 +52,33 @@ Evidence    — plan + per-skill results for one case (auditable)
 Report      — summary, per-skill means, leaderboard (JSON/CSV/MD)
 ```
 
+## System boundary
+
+```text
+eval-system  →  AgentEval  →  Agent Judge
+运行/采集       适配/组织/聚合       证据/判断
+```
+
+- `eval-system`: 运行 agent，收集各 runtime 的 attempt 和 runtrace。
+- `AgentEval`: 读取产物，动态组织 skills/rubrics，调用 scorer/Judge，生成报告。
+- `Agent Judge`: 独立的 evidence retrieval、evidence chain 和 LLM/rule judgment 系统。
+
+完整边界见 [`docs/SYSTEM_BOUNDARIES.md`](docs/SYSTEM_BOUNDARIES.md)。
+Judge 的独立架构、PydanticAI subagent、EvidenceProvider、claim/evidence chain 和迁移计划见
+[`docs/JUDGE_ARCHITECTURE.md`](docs/JUDGE_ARCHITECTURE.md)。
+
+Runtime evidence 的问题、解决方案、验证结果和未解决事项见 [`docs/RUNTIME_EVIDENCE_ISSUES.md`](docs/RUNTIME_EVIDENCE_ISSUES.md)。
+
+当前实现审查、EvidenceCatalog 修改点和真实 trace 验证见 [`docs/RUNTIME_EVIDENCE_IMPLEMENTATION_REVIEW.md`](docs/RUNTIME_EVIDENCE_IMPLEMENTATION_REVIEW.md)。
+
+AgentEval 侧的独立 Judge 接口位于 `src/agenteval/judge.py`：
+
+```text
+JudgeRequest → JudgeClient.evaluate() → JudgeResponse → SkillResult
+```
+
+Judge 的 evidence catalog、检索工具、证据链和 judge policy 不属于该接口的实现。
+
 ## Install
 
 ```bash
@@ -93,8 +120,8 @@ run/<model-id>/
 
 ## AgentOctagon quick start
 
-AgentEval 支持 AgentOctagon 的已有 attempt 评分，以及通过 AgentOctagon HTTP API
-启动 run 后再评分：
+AgentEval 支持对由 `eval-system` 收集完成的 AgentOctagon attempt 进行评分。AgentEval
+不负责启动 run；运行和采集由 `eval-system` 完成：
 
 ```bash
 # 已有 attempt：确定性环境 scorer
@@ -116,23 +143,20 @@ AgentEval 支持 AgentOctagon 的已有 attempt 评分，以及通过 AgentOctag
     --judge-rubric-file rubrics/<env_name>.txt \
     --run-root run/octagon-judge
 
-# 启动 AgentOctagon run，再由 AgentEval 评分
-.venv/bin/agenteval octagon-eval \
-    --base-url http://localhost:8100 \
-    --data-root /home/yang/agent-octagon/data \
-    --env-root /home/yang/agent-octagon-envs \
-    --env agent-workspace-smoke-test \
-    --task-id agent_workspace_smoke_test_001 \
-    --agent blade-agent \
-    --model openai/gpt-5.6-luna \
-    --run-root run/octagon-eval
+# 运行 agent、收集 attempt 和保存 runtime trace：由 eval-system 负责。
+# AgentEval 只读取已经完成的 attempt，然后执行 octagon-score。
+# 例如：
+# eval-system run ... --output /path/to/attempt
+# .venv/bin/agenteval octagon-score ... --attempt-id <attempt_id>
 ```
 
-确定性评分和 LLM judge 可以通过 `--deterministic-weight` 与 `--judge-weight`
-混合。LLM judge 会收到 task、rubric、最终输出、多轮 conversation、tool calls、
-artifacts、final state，以及（如果存在）确定性 scorer 的原始分数。
+确定性评分和独立 Judge 可以通过 `--deterministic-weight` 与 `--judge-weight`
+混合。AgentEval 只负责构造 JudgeRequest 并消费 JudgeResponse；证据查询、证据链和
+judge policy 属于独立 Judge 项目。运行 agent、收集 attempt 和保存 runtime trace 属于
+`eval-system`。
 
-详细的 runtime contract、纯 Judge/混合评分、结果文件和 Harbor 对接方式见
+详细的三层边界、runtime contract、评分模式和结果文件见
+[`docs/SYSTEM_BOUNDARIES.md`](docs/SYSTEM_BOUNDARIES.md) 与
 [`docs/RUNTIME_ADAPTERS.md`](docs/RUNTIME_ADAPTERS.md)。
 
 ## Writing your own case package (cases stay decoupled)

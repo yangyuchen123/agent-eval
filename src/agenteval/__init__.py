@@ -11,11 +11,12 @@ from .analysis import (capability_report, cohen_kappa,
                        render_migration, rubric_diagnostics, spearman)
 from .backends import LLMBackend
 from .adapters import (AgentIdentity, AgentOctagonAdapter, AgentOctagonRuntimeClient, AgentOctagonRuntimeError, ArtifactRef, ConversationTurn, EvalSample, OctagonEnvironmentSkill, OctagonLLMJudgeSkill, OctagonScorerBridge, OctagonScorerError, score_octagon_samples,
-                       JsonRuntimeAdapter, RuntimeAdapter, ToolCall)
+                       JsonRuntimeAdapter, RuntimeAdapter, ToolCall, EvidenceHit, RuntimeEvidenceIndex)
 from .capabilities import Capability, CapabilityStore, DEFAULT_TAXONOMY
 from .history import (EvalRecord, HistoryStore, new_run_id,
                       question_stats, rubric_question_report,
                       summary_by_skill)
+from .judge import HttpJudgeClient, JudgeClient, JudgeClientError, JudgeClientSkill, MultiQuestionJudgeSkill, JudgeRequest, JudgeResponse
 from .manifest import (EvaluationRun, build_manifest, evaluator_snapshot,
                        load_manifest, write_manifest)
 from .protocols import (Case, CaseEvidence, Plan, SkillResult, SkillSpec)
@@ -35,8 +36,8 @@ __version__ = "0.1.0"
 __all__ = [
     "Case", "CaseEvidence", "Plan", "SkillResult", "SkillSpec",
     "AgentIdentity", "AgentOctagonAdapter", "AgentOctagonRuntimeClient", "AgentOctagonRuntimeError", "ArtifactRef", "ConversationTurn", "EvalSample", "OctagonEnvironmentSkill", "OctagonLLMJudgeSkill", "OctagonScorerBridge", "OctagonScorerError", "score_octagon_samples",
-    "JsonRuntimeAdapter", "RuntimeAdapter", "ToolCall",
-    "LLMBackend", "Rubric", "RubricQuestion", "RubricStore", "PreferenceExample", "PreferenceStore", "MetaPrinciple", "MetaRubric", "RubricPlanner", "RubricPlannerError",
+    "JsonRuntimeAdapter", "RuntimeAdapter", "ToolCall", "EvidenceHit", "RuntimeEvidenceIndex",
+    "LLMBackend", "HttpJudgeClient", "MultiQuestionJudgeSkill", "JudgeClient", "JudgeClientError", "JudgeClientSkill", "JudgeRequest", "JudgeResponse", "Rubric", "RubricQuestion", "RubricStore", "PreferenceExample", "PreferenceStore", "MetaPrinciple", "MetaRubric", "RubricPlanner", "RubricPlannerError",
     "Capability", "CapabilityStore", "DEFAULT_TAXONOMY",
     "EvaluationRun", "build_manifest", "evaluator_snapshot",
     "load_manifest", "write_manifest",

@@ -358,9 +358,9 @@ def test_octagon_judge_uses_semantic_trajectory_and_wire_layers():
     )
     skill = OctagonLLMJudgeSkill(LLMBackend("http://judge", "judge"), rubric="R")
     packet = json.loads(skill.messages(sample.to_case(), sample.output)[1]["content"])
-    assert packet["runtrace"]["source"] == "trajectory.json + wire.jsonl"
-    assert packet["runtrace"]["trajectory"][0]["tool_name"] == "Agent"
-    assert packet["runtrace"]["wire"][0]["data"]["call_role"] == "subagent"
+    assert "evidence index" in packet["runtrace"]["source"]
+    assert packet["runtrace"]["evidence_manifest"]["record_count"] == 2
+    assert packet["runtrace"]["evidence_manifest"]["query"]["name"] == "grep_runtime_evidence"
     assert "raw token" not in json.dumps(packet["runtrace"], ensure_ascii=False)
 
 
@@ -382,5 +382,31 @@ def test_octagon_runtrace_prompt_is_compact():
     )
     skill = OctagonLLMJudgeSkill(LLMBackend("http://judge", "judge"), rubric="R")
     packet = json.loads(skill.messages(sample.to_case(), sample.output)[1]["content"])
-    assert len(packet["runtrace"]["trajectory"]) == 180
+    assert "trajectory" not in packet["runtrace"]
+    assert packet["runtrace"]["trajectory_steps"] == 1000
     assert len(json.dumps(packet, ensure_ascii=False)) < 100_000
+
+
+def test_runtime_evidence_index_preserves_content_and_excludes_deltas():
+    from agenteval.adapters.runtime_evidence import RuntimeEvidenceIndex
+    index = RuntimeEvidenceIndex.from_sample_context({
+        "trace": [{"tool_name": "Agent", "arguments": {"description": "dispatch security"}, "result": "handoff complete"}],
+        "events": [{"kind": "llm:content:delta", "raw": {"payload": {"content": "secret repeated"}}}, {"kind": "agent:end", "raw": {"payload": {"description": "security done"}}}],
+    })
+    manifest = index.manifest()
+    assert manifest["record_count"] == 2
+    result = index.grep("security")
+    assert result["count"] == 2
+    assert "handoff complete" in str(result)
+    assert "secret repeated" not in str(result)
+
+
+def test_runtime_evidence_index_filters_by_agent():
+    from agenteval.adapters.runtime_evidence import RuntimeEvidenceIndex
+    index = RuntimeEvidenceIndex.from_sample_context({"trace": [
+        {"agent_id": "a", "tool_name": "Agent", "arguments": {"description": "requirements"}},
+        {"agent_id": "b", "tool_name": "Agent", "arguments": {"description": "security"}},
+    ]})
+    result = index.grep("Agent", agent_id="b")
+    assert result["count"] == 1
+    assert result["hits"][0]["record"]["agent_id"] == "b"

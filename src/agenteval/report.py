@@ -29,7 +29,13 @@ def build_report(
             "case_id": evidence.case_id,
             "score": score,
             "skills": {
-                sid: {"score": r.score, "status": r.status}
+                sid: {
+                    "score": r.score,
+                    "status": r.status,
+                    # Preserve Judge/tool provenance in the report index while
+                    # the full evidence tree remains under evidence/.
+                    "provenance": r.diagnostics.get("judge_provenance", r.diagnostics.get("provenance", {})),
+                }
                 for sid, r in sorted(evidence.skill_results.items())
             },
         })

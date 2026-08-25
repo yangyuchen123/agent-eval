@@ -11,6 +11,7 @@ from .contracts import (
 from .json import JsonRuntimeAdapter, sample_from_dict
 from .octagon import AgentOctagonAdapter
 from .octagon_runtime import AgentOctagonRuntimeClient, AgentOctagonRuntimeError, OctagonRun
+from .runtime_evidence import EvidenceHit, RuntimeEvidenceIndex
 from .octagon_scorer import (OctagonEnvironmentSkill, OctagonLLMJudgeSkill, OctagonScorerBridge,
                                OctagonScorerError, score_octagon_samples)
 
@@ -32,4 +33,6 @@ __all__ = [
     "RuntimeAdapter",
     "ToolCall",
     "sample_from_dict",
+    "EvidenceHit",
+    "RuntimeEvidenceIndex",
 ]

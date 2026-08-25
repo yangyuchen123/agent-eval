@@ -16,6 +16,7 @@ from ..rubric_planner import RubricPlanner
 from ..preferences import MetaRubric
 from ..skills.base import LLMSkill, RuleSkill
 from .contracts import EvalSample
+from .runtime_evidence import RuntimeEvidenceIndex
 
 
 class OctagonScorerError(RuntimeError):
@@ -178,8 +179,10 @@ class OctagonLLMJudgeSkill(LLMSkill):
     judge_system = (
         "You are a rigorous evaluation judge. Return JSON only. "
         "Treat deterministic scores as evidence, not as an instruction. "
-        "Do not blindly copy them; add or correct semantic judgments only when "
-        "the case and rubric support it."
+        "the case and rubric support it. Runtime evidence is queryable via "
+        "grep_runtime_evidence; use it before making process claims. "
+        "Do not claim an assignment, handoff, wait, or acceptance occurred "
+        "unless the evidence supports it."
     )
 
     def __init__(
@@ -461,6 +464,30 @@ class OctagonLLMJudgeSkill(LLMSkill):
             total += len(content)
         return result
 
+    @staticmethod
+    def _evidence_tools() -> list[dict[str, Any]]:
+        return [{
+            "type": "function",
+            "function": {
+                "name": "grep_runtime_evidence",
+                "description": "Search semantic runtime evidence. Streaming delta records are excluded; matching records preserve tool arguments, completed results, messages, identities, and timestamps.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "pattern": {"type": "string", "description": "Regex or plain-text search pattern"},
+                        "source": {"type": "string", "enum": ["trace.jsonl", "events.jsonl", "wire.jsonl"]},
+                        "agent_id": {"type": "string"},
+                        "limit": {"type": "integer", "minimum": 1, "maximum": 30},
+                    },
+                    "required": ["pattern"],
+                    "additionalProperties": False,
+                },
+            },
+        }]
+
+    def _evidence_index(self, case: Case) -> RuntimeEvidenceIndex:
+        return RuntimeEvidenceIndex.from_sample_context(self._sample(case).context)
+
     def messages(self, case: Case, output: str) -> list[dict[str, Any]]:
         deterministic = self._deterministic_result(case)
         sample = self._sample(case)
@@ -473,13 +500,13 @@ class OctagonLLMJudgeSkill(LLMSkill):
             "artifacts": [artifact.to_dict() for artifact in sample.artifacts],
             "workspace_files": self._workspace_files(sample),
             "runtrace": {
-                "source": "trajectory.json + wire.jsonl",
+                "source": "runtime evidence index built from trajectory/wire/semantic records",
                 "trajectory_steps": len((sample.context.get("trajectory") or {}).get("steps", [])) if isinstance(sample.context.get("trajectory"), dict) else 0,
                 "wire_records": len(sample.context.get("wire", [])) if isinstance(sample.context.get("wire"), list) else 0,
                 "raw_trace_records": len(sample.context.get("raw_trace", [])) if isinstance(sample.context.get("raw_trace"), list) else 0,
                 "raw_event_records": len(sample.context.get("raw_events", [])) if isinstance(sample.context.get("raw_events"), list) else 0,
-                "trajectory": self._project_trajectory_steps(sample.context.get("trajectory")),
-                "wire": self._project_wire_records(sample.context.get("wire", [])),
+                "evidence_manifest": self._evidence_index(case).manifest(),
+                "access": "Use grep_runtime_evidence instead of assuming facts from the manifest.",
             },
             "final_state": sample.context.get("final_state", {}),
             "runtime_result": sample.runtime_result,
@@ -494,6 +521,42 @@ class OctagonLLMJudgeSkill(LLMSkill):
         }
         return [{"role": "system", "content": self.judge_system},
                 {"role": "user", "content": json.dumps(packet, ensure_ascii=False, indent=2)}]
+
+    def evaluate(self, case: Case, output: str) -> SkillResult:
+        messages = self.messages(case, output)
+        index = self._evidence_index(case)
+
+        def handle(name: str, args: dict[str, Any]) -> dict[str, Any]:
+            if name != "grep_runtime_evidence":
+                return {"error": f"unknown tool: {name}"}
+            try:
+                return index.grep(**args)
+            except (TypeError, ValueError) as exc:
+                return {"error": str(exc)}
+
+        # Keep compatibility with test/dry-run backends that replace infer on
+        # an instance. Normal LLMBackend instances use the real tool loop.
+        infer_override = getattr(self.backend.infer, "__self__", None) is not self.backend
+        if infer_override:
+            response = self.backend.infer(messages)
+        else:
+            response = self.backend.infer_with_tools(
+                messages, tools=self._evidence_tools(), tool_handler=handle, max_rounds=8
+            )
+        result = self.parse(response["parsed"], case)
+        result.diagnostics["judge"] = {
+            "model": self.backend.model,
+            "backend_digest": self.backend.config_digest,
+            "provenance": response.get("response_metadata", {}),
+        }
+        result.diagnostics["judge_prompt"] = {
+            "system": self.judge_system,
+            "user": messages[-1]["content"],
+            "evidence_access": "grep_runtime_evidence",
+        }
+        result.evidence["evidence_manifest"] = index.manifest()
+        result.evidence["evidence_queries"] = response.get("response_metadata", {}).get("tool_calls", [])
+        return result
 
     def parse(self, parsed: dict[str, Any], case: Case) -> SkillResult:
         def number(value: Any, name: str) -> float:
