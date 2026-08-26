@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import pytest  # noqa: E402
 
-from agenteval import Case, Rubric, RubricQuestion, RubricStore  # noqa: E402
+from agenteval import Case, Rubric, RubricQuestion, RubricStore, ScoreAnchor  # noqa: E402
 from agenteval.rubrics import (evidence_in_patch, normalize_patch,  # noqa: E402
                                normalize_whitespace)
 from agenteval.skills.rubric import FineGrainedRubric  # noqa: E402
@@ -48,6 +48,33 @@ def test_rubric_roundtrip(tmp_path):
     assert loaded == r
     assert path.is_file()
     assert store.list_rubrics() == ["test_rubric"]
+
+
+def test_structured_score_anchors_roundtrip_and_validation():
+    rubric = Rubric(
+        rubric_id="anchored", version="1", description="d",
+        allowed_scores=(0.0, 0.5, 1.0),
+        questions=(RubricQuestion(
+            id="execution", question="Was it executed?", anchors="0/0.5/1",
+            evidence="runtime", score_anchors=(
+                ScoreAnchor(0.0, "No material action"),
+                ScoreAnchor(0.5, "Some material actions"),
+                ScoreAnchor(1.0, "All material actions"),
+            ),
+        ),),
+    )
+    loaded = Rubric.from_dict(rubric.to_dict())
+    assert loaded == rubric
+    assert loaded.to_dict()["questions"][0]["score_anchors"][1]["score"] == 0.5
+    with pytest.raises(ValueError, match="outside allowed_scores"):
+        Rubric(
+            rubric_id="bad", version="1", description="d",
+            allowed_scores=(0.0, 1.0),
+            questions=(RubricQuestion(
+                id="q", question="q", anchors="a", evidence="e",
+                score_anchors=(ScoreAnchor(0.0, "no"), ScoreAnchor(0.5, "partial")),
+            ),),
+        )
 
 
 def test_rubric_validation():
@@ -97,6 +124,30 @@ def test_parse_rejects_fabricated_evidence():
     result = skill.parse(parsed, Case(case_id="c", task="t"), out)
     assert "Q1" in result.evidence["fabricated_evidence_rejected"]
     assert result.evidence["per_question"]["Q1"] == ""
+
+
+def test_structured_anchor_score_is_not_silently_snapped():
+    rubric = Rubric(
+        rubric_id="anchored", version="1", description="d",
+        allowed_scores=(0.0, 0.5, 1.0),
+        questions=(RubricQuestion(
+            id="Q1", question="q", anchors="0/0.5/1", evidence="quote",
+            score_anchors=(
+                ScoreAnchor(0.0, "no"),
+                ScoreAnchor(0.5, "partial"),
+                ScoreAnchor(1.0, "yes"),
+            ),
+        ),),
+    )
+    skill = make_skill(rubric)
+    result = skill.parse(
+        {"answers": {"Q1": {"score": 0.7, "evidence": "x", "reason": "r"}}},
+        Case(case_id="c", task="t"),
+        "x",
+    )
+    assert result.subscores["Q1"] is None
+    assert result.status == "invalid"
+    assert result.evidence["anchor_selection_violations"] == ["Q1"]
 
 
 def test_parse_discrete_ladder_snapping():

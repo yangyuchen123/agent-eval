@@ -62,10 +62,12 @@ Preference examples:
 
     def _instantiate_messages(self, meta: MetaRubric, case: Case) -> list[dict[str, str]]:
         user = """Instantiate a concrete rubric for this case from the supplied meta-rubric.
-Keep the human preference principles, but adapt questions, anchors, weights, and evidence sources to this case.
+Keep the human preference principles, but adapt questions, weights, evidence sources, and scoring anchors to this case.
+Decompose broad preferences into independently judgeable dimensions; do not bundle understanding, execution, validation, failure handling, and claim integrity into one question when they can vary independently.
+Each question must include 3-5 concise, mutually distinguishable score_anchors selected from allowed_scores. The anchors must say what observable evidence is sufficient for that dimension, not merely use labels such as good/partial/bad.
 Do not invent facts not present in the case. Every question must cite source_principles and explain its case adaptation.
 Return JSON only:
-{"rubric_id":"...","version":"...","description":"...","questions":[{"id":"snake_case","question":"...","anchors":"...","evidence":"...","weight":1.0,"capabilities":["..."],"lineage":["..."],"source_principles":["..."],"case_adaptation":"..."}],"meta_questions":[],"allowed_scores":[0,0.25,0.5,0.75,1],"provenance":{"source_meta_rubric":"...","source_examples":["..."]}}
+{"rubric_id":"...","version":"...","description":"...","questions":[{"id":"snake_case","question":"...","anchors":"legacy concise display string","score_anchors":[{"score":0.0,"label":"unsupported","description":"..."},{"score":0.5,"label":"partial","description":"..."},{"score":1.0,"label":"supported","description":"..."}],"evidence":"...","weight":1.0,"capabilities":["..."],"lineage":["..."],"source_principles":["..."],"case_adaptation":"..."}],"meta_questions":[],"allowed_scores":[0,0.25,0.5,0.75,1],"provenance":{"source_meta_rubric":"...","source_examples":["..."]}}
 
 Meta-rubric:
 """ + json.dumps(meta.to_dict(), ensure_ascii=False, indent=2) + "\n\nCase:\n" + json.dumps(self._case_prompt_payload(case), ensure_ascii=False, indent=2)
@@ -119,7 +121,11 @@ Meta-rubric:
                 source = tuple(str(x) for x in (raw.get("source_principles") or []))
                 if not source:
                     raise RubricPlannerError(f"question {raw.get('id')!r} has no source_principles")
-                questions.append(RubricQuestion.from_dict(raw))
+                question = RubricQuestion.from_dict(raw)
+                if len(question.score_anchors) < 3:
+                    raise RubricPlannerError(
+                        f"question {question.id!r} requires at least three structured score_anchors")
+                questions.append(question)
             if not questions:
                 raise RubricPlannerError("generated case rubric has no questions")
             result = Rubric(

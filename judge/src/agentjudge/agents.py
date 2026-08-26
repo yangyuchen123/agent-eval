@@ -8,10 +8,11 @@ from .evidence import EvidenceProvider
 from .models import EvidenceQuery, QuestionJudgment
 
 try:
-    from pydantic_ai import Agent, RunContext
+    from pydantic_ai import Agent, ModelRetry, RunContext
 except ImportError as exc:  # pragma: no cover - dependency is installed by judge project
     Agent = None  # type: ignore[assignment,misc]
     RunContext = Any  # type: ignore[assignment,misc]
+    ModelRetry = RuntimeError  # type: ignore[assignment,misc]
     _IMPORT_ERROR = exc
 else:
     _IMPORT_ERROR = None
@@ -28,6 +29,14 @@ def _require_pydantic_ai() -> None:
         raise RuntimeError(
             "agent-judge requires pydantic-ai; install judge[dev] or judge dependencies"
         ) from _IMPORT_ERROR
+
+
+def declared_anchor_scores(question: dict[str, Any]) -> list[float]:
+    return [
+        float(anchor["score"])
+        for anchor in (question.get("score_anchors") or [])
+        if isinstance(anchor, dict) and anchor.get("score") is not None
+    ]
 
 
 def build_question_agent(model: Any) -> Any:
@@ -52,6 +61,18 @@ def build_question_agent(model: Any) -> Any:
             "say so explicitly rather than inventing it."
         ),
     )
+
+    @agent.output_validator
+    async def validate_discrete_anchor(
+        ctx: RunContext[QuestionJudgeDeps], output: QuestionJudgment
+    ) -> QuestionJudgment:
+        scores = declared_anchor_scores(ctx.deps.question)
+        if scores and not any(abs(output.score - score) <= 1e-9 for score in scores):
+            raise ModelRetry(
+                f"The final score must select exactly one declared score anchor {scores}; "
+                f"received {output.score}. Re-evaluate the evidence against the anchor descriptions."
+            )
+        return output
 
     @agent.tool
     async def search_evidence(

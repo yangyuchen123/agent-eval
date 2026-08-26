@@ -88,8 +88,12 @@ class FineGrainedRubric(LLMSkill):
     def _rubric_text(self) -> str:
         blocks = []
         for q in self.rubric.questions:
+            anchors = q.anchors
+            if q.score_anchors:
+                anchors = "; ".join(
+                    f"{anchor.score}={anchor.description}" for anchor in q.score_anchors)
             blocks.append(
-                f"{q.id}: {q.question}\n  anchors: {q.anchors}\n"
+                f"{q.id}: {q.question}\n  anchors: {anchors}\n"
                 f"  evidence: {q.evidence}")
         return "\n\n".join(blocks)
 
@@ -144,6 +148,7 @@ class FineGrainedRubric(LLMSkill):
         reasons: dict[str, str] = {}
         evidence: dict[str, str] = {}
         fabricated: list[str] = []
+        anchor_violations: list[str] = []
 
         for q in self.rubric.questions:
             if flat_scores is not None:
@@ -164,7 +169,18 @@ class FineGrainedRubric(LLMSkill):
             except (TypeError, ValueError):
                 subscores[q.id] = None
                 continue
-            s = s if s in allowed else min(allowed, key=lambda a: abs(a - s))
+            question_allowed = (
+                {anchor.score for anchor in q.score_anchors}
+                if q.score_anchors else allowed
+            )
+            if q.score_anchors and s not in question_allowed:
+                # Structured anchors are strict: silently snapping would hide a
+                # Judge anchor-selection failure. Legacy text-only rubrics keep
+                # their historical nearest-ladder behavior.
+                subscores[q.id] = None
+                anchor_violations.append(q.id)
+                continue
+            s = s if s in question_allowed else min(question_allowed, key=lambda a: abs(a - s))
             evid = str(item.get("evidence") or "").strip()
             if (evid and self.require_verbatim_evidence
                     and not self.rubric.is_meta(q.id)
@@ -185,6 +201,7 @@ class FineGrainedRubric(LLMSkill):
             evidence={
                 "per_question": evidence,
                 "fabricated_evidence_rejected": fabricated,
+                "anchor_selection_violations": anchor_violations,
                 "summary": str(parsed.get("summary", "")),
             },
         )

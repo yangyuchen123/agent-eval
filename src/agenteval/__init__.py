@@ -17,10 +17,11 @@ from .history import (EvalRecord, HistoryStore, new_run_id,
                       question_stats, rubric_question_report,
                       summary_by_skill)
 from .judge import HttpJudgeClient, JudgeClient, JudgeClientError, JudgeClientSkill, MultiQuestionJudgeSkill, JudgeRequest, JudgeResponse
+from .meta_eval import (EvidenceSnapshot, FailureCode, GoldJudgment, JudgmentObservation, MetaCase, MetaEvalRunner, add_distractors, classify_failure, lengthen, remove, reorder, score_metrics, stability_metrics)
 from .manifest import (EvaluationRun, build_manifest, evaluator_snapshot,
                        load_manifest, write_manifest)
 from .protocols import (Case, CaseEvidence, Plan, SkillResult, SkillSpec)
-from .rubrics import Rubric, RubricQuestion, RubricStore
+from .rubrics import Rubric, RubricQuestion, RubricStore, ScoreAnchor
 from .preferences import MetaPrinciple, MetaRubric, PreferenceExample, PreferenceStore
 from .rubric_planner import RubricPlanner, RubricPlannerError
 from .planner import LLMRouter, RuleRouter, validate_plan
@@ -39,6 +40,7 @@ __all__ = [
     "JsonRuntimeAdapter", "RuntimeAdapter", "ToolCall", "EvidenceHit", "RuntimeEvidenceIndex",
     "LLMBackend", "HttpJudgeClient", "MultiQuestionJudgeSkill", "JudgeClient", "JudgeClientError", "JudgeClientSkill", "JudgeRequest", "JudgeResponse", "Rubric", "RubricQuestion", "RubricStore", "PreferenceExample", "PreferenceStore", "MetaPrinciple", "MetaRubric", "RubricPlanner", "RubricPlannerError",
     "Capability", "CapabilityStore", "DEFAULT_TAXONOMY",
+    "GoldJudgment", "FailureCode", "MetaCase", "JudgmentObservation", "MetaEvalRunner", "EvidenceSnapshot", "reorder", "add_distractors", "lengthen", "remove", "classify_failure", "score_metrics", "stability_metrics",
     "EvaluationRun", "build_manifest", "evaluator_snapshot",
     "load_manifest", "write_manifest",
     "EvalRecord", "HistoryStore", "new_run_id",

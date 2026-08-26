@@ -69,7 +69,7 @@ Naming: we say **rubric optimization** (calibration), not "self-evolving"
 
 ## Layer 1 — Rubric as data (current)
 
-* `src/agenteval/rubrics.py` — `Rubric`, `RubricQuestion`, `RubricStore`
+* `src/agenteval/rubrics.py` — `Rubric`, `RubricQuestion`, `ScoreAnchor`, `RubricStore`; new reliability-sensitive questions may declare structured discrete `score_anchors`, while legacy text anchors remain compatible
   (versioned JSON, load/save/validate), plus the evidence-matching utils.
 * `src/agenteval/skills/rubric.py` — `FineGrainedRubric` base class:
   analyze/verify two-stage, discrete ladder, verbatim evidence with

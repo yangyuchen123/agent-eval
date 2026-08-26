@@ -75,3 +75,22 @@ def test_catalog_generic_navigation_is_not_rubric_specific(tmp_path):
     assert {r.evidence_id for r in catalog.call_context("call-8")} == {"trace.jsonl:1", "trace.jsonl:2"}
     assert catalog.related(call.evidence_id, "child")[0].agent_id == "child"
     assert catalog.related(call.evidence_id, "after")[0].evidence_id == "trace.jsonl:2"
+
+
+def test_question_prompt_requires_declared_discrete_anchor():
+    from agentjudge.models import JudgeRequest
+    from agentjudge.service import _question_prompt
+    request = JudgeRequest(
+        case={"task": "x"}, rubric={}, agent_output="",
+        rubric_question={
+            "id": "q", "question": "q",
+            "score_anchors": [
+                {"score": 0.0, "description": "no"},
+                {"score": 0.5, "description": "partial"},
+                {"score": 1.0, "description": "yes"},
+            ],
+        },
+    )
+    prompt = _question_prompt(request, request.rubric_question)
+    assert "Select exactly one declared score anchor (0.0, 0.5, 1.0)" in prompt
+    assert "do not invent an intermediate continuous score" in prompt

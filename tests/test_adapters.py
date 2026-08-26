@@ -290,9 +290,9 @@ def test_octagon_llm_judge_generates_case_rubric_from_meta_rubric():
     calls = []
     responses = [
         {"parsed": {"rubric_id": "case", "version": "1", "description": "adapted", "questions": [
-            {"id": "grounded", "question": "Is the plan grounded?", "anchors": "1 grounded; 0 invented", "evidence": "output", "lineage": ["grounding"], "source_principles": ["grounding"], "case_adaptation": "apply to planning"}
+            {"id": "grounded", "question": "Is the plan grounded?", "anchors": "1 grounded; 0.5 partial; 0 invented", "score_anchors": [{"score": 0, "description": "invented"}, {"score": 0.5, "description": "partly grounded"}, {"score": 1, "description": "grounded"}], "evidence": "output", "lineage": ["grounding"], "source_principles": ["grounding"], "case_adaptation": "apply to planning"}
         ], "provenance": {}}, "response_metadata": {}},
-        {"parsed": {"score": 0.8, "subscores": {"grounded": 0.8}, "reasons": {"grounded": "grounded"}}, "response_metadata": {}},
+        {"parsed": {"score": 0.8, "subscores": {"grounded": 1.0}, "reasons": {"grounded": "grounded"}}, "response_metadata": {}},
     ]
     def fake_infer(messages):
         calls.append(messages)
@@ -305,7 +305,9 @@ def test_octagon_llm_judge_generates_case_rubric_from_meta_rubric():
         backend, rubric_planner=RubricPlanner(backend), meta_rubric=meta
     )
     result = skill.evaluate(sample.to_case(), sample.output)
-    assert result.score == 0.8
+    assert result.score == 1.0
+    assert result.diagnostics["model_reported_score"] == 0.8
+    assert result.diagnostics["score_aggregation"] == "weighted_structured_anchors"
     packet = json.loads(calls[1][-1]["content"])
     assert json.loads(packet["rubric"])["rubric_id"] == "case"
     assert result.evidence["rubric_provenance"]["source_meta_rubric"] == "human"

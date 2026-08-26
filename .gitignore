@@ -12,3 +12,8 @@ examples/swebench/work/          # repo checkouts (large)
 examples/swebench/node_modules/
 examples/swebench/predictions.json   # agent 产物(结果数据)
 examples/demo/data/
+
+# 本地模型/API 配置（禁止提交密钥）
+.env
+.env.*
+!.env.example

@@ -266,6 +266,11 @@ class MultiQuestionJudgeSkill(Skill):
             response = raw if isinstance(raw, JudgeResponse) else JudgeResponse.from_dict(raw)
             if response.score is not None:
                 _validate_number(response.score, f"question[{question.get('id')}].score")
+                anchor_scores = _question_anchor_scores(question)
+                if anchor_scores and not any(abs(response.score - value) <= 1e-9 for value in anchor_scores):
+                    raise ValueError(
+                        f"question[{question.get('id')}].score must select one of "
+                        f"the declared anchors {anchor_scores}, got {response.score}")
                 weight = float(question.get("weight", 1.0))
                 if weight > 0:
                     weighted.append((response.score, weight))
@@ -293,9 +298,14 @@ class MultiQuestionJudgeSkill(Skill):
 
 def _rubric_questions(rubric: Rubric | Mapping[str, Any] | str) -> list[dict[str, Any]]:
     if isinstance(rubric, Rubric):
-        return [q.to_dict() for q in rubric.questions]
+        allowed = list(rubric.allowed_scores)
+        return [{**q.to_dict(), "allowed_scores": allowed} for q in rubric.questions]
     if isinstance(rubric, Mapping):
-        return [dict(q) for q in (rubric.get("questions") or []) if isinstance(q, Mapping)]
+        allowed = [float(x) for x in (rubric.get("allowed_scores") or [])]
+        return [
+            {**dict(q), **({"allowed_scores": allowed} if allowed else {})}
+            for q in (rubric.get("questions") or []) if isinstance(q, Mapping)
+        ]
     if isinstance(rubric, str):
         try:
             value = json.loads(rubric)
@@ -303,6 +313,14 @@ def _rubric_questions(rubric: Rubric | Mapping[str, Any] | str) -> list[dict[str
             return []
         return _rubric_questions(value) if isinstance(value, Mapping) else []
     return []
+
+
+def _question_anchor_scores(question: Mapping[str, Any]) -> list[float]:
+    values: list[float] = []
+    for anchor in question.get("score_anchors") or []:
+        if isinstance(anchor, Mapping) and anchor.get("score") is not None:
+            values.append(float(anchor["score"]))
+    return values
 
 
 def _deterministic_result(case: Case) -> Mapping[str, Any] | None:

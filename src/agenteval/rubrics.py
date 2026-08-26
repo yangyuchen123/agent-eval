@@ -29,12 +29,47 @@ DEFAULT_ALLOWED_SCORES = (0.0, 0.25, 0.5, 0.75, 1.0)
 
 
 @dataclass(frozen=True)
+class ScoreAnchor:
+    """One concise, discrete scoring choice for a rubric question."""
+
+    score: float
+    description: str
+    label: str = ""
+
+    def __post_init__(self) -> None:
+        if not 0 <= self.score <= 1:
+            raise ValueError(f"anchor score must be in [0,1], got {self.score}")
+        if not self.description.strip():
+            raise ValueError("anchor description must not be empty")
+
+    def to_dict(self) -> dict[str, Any]:
+        value: dict[str, Any] = {
+            "score": self.score,
+            "description": self.description,
+        }
+        if self.label:
+            value["label"] = self.label
+        return value
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ScoreAnchor":
+        return cls(
+            score=float(data["score"]),
+            description=str(data.get("description") or data.get("anchor") or ""),
+            label=str(data.get("label") or ""),
+        )
+
+
+@dataclass(frozen=True)
 class RubricQuestion:
     id: str
     question: str
     anchors: str                 # per-anchor score definitions
     evidence: str                # what the judge must quote
     weight: float = 1.0
+    # Structured anchors are the canonical form for new reliability-sensitive
+    # rubrics. ``anchors`` remains for backward compatibility and display.
+    score_anchors: tuple[ScoreAnchor, ...] = ()
     # concept lineage: ids of ancestor questions this question descends
     # from across rubric versions. Empty = this id is its own lineage.
     # Needed by Phase 3.3 (version migration) and the future proposer.
@@ -54,6 +89,8 @@ class RubricQuestion:
             "anchors": self.anchors, "evidence": self.evidence,
             "weight": self.weight,
         }
+        if self.score_anchors:
+            d["score_anchors"] = [anchor.to_dict() for anchor in self.score_anchors]
         if self.lineage:
             d["lineage"] = list(self.lineage)
         if self.capabilities:
@@ -75,6 +112,11 @@ class RubricQuestion:
             anchors=str(data.get("anchors") or ""),
             evidence=str(data.get("evidence") or ""),
             weight=float(data.get("weight", 1.0)),
+            score_anchors=tuple(
+                ScoreAnchor.from_dict(dict(x))
+                for x in (data.get("score_anchors") or ())
+                if isinstance(x, dict)
+            ),
             lineage=tuple(str(x) for x in (data.get("lineage") or ())),
             capabilities=tuple(str(x) for x in (data.get("capabilities") or ())),
             source_principles=tuple(str(x) for x in (data.get("source_principles") or ())),
@@ -102,6 +144,28 @@ class Rubric:
     # and case adaptation decisions. Kept optional for backward compatibility.
     provenance: dict[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        if not self.rubric_id or not self.version:
+            raise ValueError("rubric requires rubric_id and version")
+        if not self.questions:
+            raise ValueError(f"rubric {self.rubric_id!r} has no questions")
+        if len(set(self.allowed_scores)) != len(self.allowed_scores) or any(
+            not 0 <= score <= 1 for score in self.allowed_scores
+        ):
+            raise ValueError(
+                f"invalid allowed_scores for rubric {self.rubric_id!r}: {self.allowed_scores}")
+        allowed = set(self.allowed_scores)
+        for question in self.questions:
+            scores = [anchor.score for anchor in question.score_anchors]
+            if len(set(scores)) != len(scores):
+                raise ValueError(f"question {question.id!r} has duplicate score anchors")
+            if set(scores) - allowed:
+                raise ValueError(
+                    f"question {question.id!r} anchors are outside allowed_scores: "
+                    f"{sorted(set(scores) - allowed)}")
+            if scores and len(scores) < 2:
+                raise ValueError(f"question {question.id!r} requires at least two score anchors")
+
     # ------------------------------------------------------------ data ----
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -127,6 +191,19 @@ class Rubric:
             raise ValueError(f"rubric {rubric_id!r} has no questions")
         allowed = tuple(float(s) for s in (data.get("allowed_scores")
                                            or DEFAULT_ALLOWED_SCORES))
+        if len(set(allowed)) != len(allowed) or any(not 0 <= score <= 1 for score in allowed):
+            raise ValueError(f"invalid allowed_scores for rubric {rubric_id!r}: {allowed}")
+        allowed_set = set(allowed)
+        for question in questions:
+            anchor_scores = [anchor.score for anchor in question.score_anchors]
+            if len(set(anchor_scores)) != len(anchor_scores):
+                raise ValueError(f"question {question.id!r} has duplicate score anchors")
+            unknown = set(anchor_scores) - allowed_set
+            if unknown:
+                raise ValueError(
+                    f"question {question.id!r} anchors are outside allowed_scores: {sorted(unknown)}")
+            if question.score_anchors and len(question.score_anchors) < 2:
+                raise ValueError(f"question {question.id!r} requires at least two score anchors")
         return cls(
             rubric_id=rubric_id,
             version=version,

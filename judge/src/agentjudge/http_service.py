@@ -38,6 +38,8 @@ class JudgeHttpApplication:
             "trace_ref": request.trace_ref,
             "evidence_manifest": evidence.manifest() if hasattr(evidence, "manifest") else {"record_count": len(getattr(evidence, "records", []))},
             "query_trajectory": service.last_query_trajectory,
+            "token_usage": service.last_usage,
+            "scoring": service.last_scoring_provenance,
             "integrity": integrity,
         }
         status = "incomplete_evidence" if integrity["issues"] else "scored"
@@ -99,7 +101,33 @@ def _model_name(model: Any) -> str:
     return str(value or type(model).__name__)
 
 
+def load_project_dotenv() -> Path | None:
+    """Load a simple project ``.env`` without overriding real environment vars."""
+    candidates = [Path.cwd() / ".env", Path(__file__).resolve().parents[3] / ".env"]
+    for path in candidates:
+        if not path.is_file():
+            continue
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("export "):
+                line = line[7:].lstrip()
+            if "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key, value = key.strip(), value.strip()
+            if not key or key in os.environ:
+                continue
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+                value = value[1:-1]
+            os.environ[key] = value
+        return path
+    return None
+
+
 def model_from_env() -> Any:
+    load_project_dotenv()
     """Build an OpenAI-compatible PydanticAI model from environment variables."""
     from pydantic_ai.models.openai import OpenAIChatModel
     from pydantic_ai.providers.openai import OpenAIProvider

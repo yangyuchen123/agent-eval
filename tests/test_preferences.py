@@ -48,7 +48,7 @@ def test_planner_infers_and_instantiates_structured_rubric(monkeypatch):
             {"id": "evidence_boundedness", "name": "Evidence", "description": "No unsupported facts", "source_examples": ["pref-1"]}
         ], "source_examples": ["pref-1"]}, "response_metadata": {}},
         {"parsed": {"rubric_id": "case-rubric", "version": "1", "description": "case", "questions": [
-            {"id": "groundedness", "question": "Is it grounded?", "anchors": "1 good; 0 bad", "evidence": "trace/artifact", "weight": 1, "lineage": ["evidence_boundedness"], "source_principles": ["evidence_boundedness"], "case_adaptation": "apply to this task"}
+            {"id": "groundedness", "question": "Is it grounded?", "anchors": "1 good; 0.5 partial; 0 bad", "score_anchors": [{"score": 0, "description": "unsupported"}, {"score": 0.5, "description": "partially supported"}, {"score": 1, "description": "fully supported"}], "evidence": "trace/artifact", "weight": 1, "lineage": ["evidence_boundedness"], "source_principles": ["evidence_boundedness"], "case_adaptation": "apply to this task"}
         ], "source_examples": ["pref-1"]}, "response_metadata": {}},
     ]
     monkeypatch.setattr(backend, "infer", lambda messages: responses.pop(0))
@@ -57,6 +57,7 @@ def test_planner_infers_and_instantiates_structured_rubric(monkeypatch):
     rubric = planner.instantiate(meta, Case(case_id="c", task="new task"))
     assert meta.principles[0].principle_id == "evidence_boundedness"
     assert rubric.questions[0].source_principles == ("evidence_boundedness",)
+    assert [anchor.score for anchor in rubric.questions[0].score_anchors] == [0.0, 0.5, 1.0]
     assert rubric.provenance["source_meta_rubric"] == "human"
 
 

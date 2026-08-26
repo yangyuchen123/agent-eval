@@ -27,3 +27,10 @@ python -m venv .venv
 - `QuestionJudgeService`：执行单个 fully-specified rubric question；
 
 HTTP service、真实 runtime provider 和完整 claim policy 在后续阶段加入。
+
+## Local configuration
+
+Copy the repository root `.env.example` to `.env` and fill in
+`JUDGE_API_KEY`. The standalone server and meta-evaluation runner load this
+ignored file automatically. Credentials are never committed; `.env.example`
+contains only placeholders.

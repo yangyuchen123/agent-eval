@@ -512,8 +512,8 @@ class OctagonLLMJudgeSkill(LLMSkill):
             "runtime_result": sample.runtime_result,
             "deterministic_environment_score": deterministic.to_dict() if deterministic else None,
             "required_response_schema": {
-                "score": "number in [0,1]",
-                "subscores": "object of dimension -> number in [0,1]",
+                "score": "overall number in [0,1]; AgentEval recomputes it from weighted anchored subscores when structured anchors are present",
+                "subscores": "object of dimension -> exactly one declared score_anchor for that dimension",
                 "reasons": "object of dimension -> concise explanation",
                 "additive_findings": "array of findings not captured by deterministic scorer",
                 "confidence": "number in [0,1]"
@@ -568,11 +568,35 @@ class OctagonLLMJudgeSkill(LLMSkill):
                 raise OctagonScorerError(f"LLM judge {name} must be in [0,1], got {result}")
             return round(result, 6)
 
-        score = number(parsed.get("score"), "score")
+        model_reported_score = number(parsed.get("score"), "score")
         raw_subscores = parsed.get("subscores") or {}
         if not isinstance(raw_subscores, dict):
             raise OctagonScorerError("LLM judge subscores must be an object")
         subscores = {str(k): number(v, f"subscores[{k}]") for k, v in raw_subscores.items()}
+        score = model_reported_score
+        case_rubric = self._case_rubrics.get(case.case_id)
+        if case_rubric and any(question.score_anchors for question in case_rubric.questions):
+            weighted: list[tuple[float, float]] = []
+            for question in case_rubric.questions:
+                if not question.score_anchors:
+                    continue
+                if question.id not in subscores:
+                    raise OctagonScorerError(
+                        f"LLM judge missing anchored subscore for {question.id}")
+                value = subscores[question.id]
+                allowed = [anchor.score for anchor in question.score_anchors]
+                if not any(abs(value - anchor) <= 1e-9 for anchor in allowed):
+                    raise OctagonScorerError(
+                        f"LLM judge subscore[{question.id}] must select one of "
+                        f"the declared anchors {allowed}, got {value}")
+                if question.weight > 0:
+                    weighted.append((value, question.weight))
+            if weighted:
+                score = round(
+                    sum(value * weight for value, weight in weighted)
+                    / sum(weight for _, weight in weighted),
+                    6,
+                )
         raw_reasons = parsed.get("reasons") or {}
         if not isinstance(raw_reasons, dict):
             raise OctagonScorerError("LLM judge reasons must be an object")
@@ -588,7 +612,15 @@ class OctagonLLMJudgeSkill(LLMSkill):
                 "deterministic_environment_score": deterministic.to_dict() if deterministic else None,
                 "additive_findings": parsed.get("additive_findings", []),
             },
-            diagnostics={"confidence": parsed.get("confidence")},
+            diagnostics={
+                "confidence": parsed.get("confidence"),
+                "model_reported_score": model_reported_score,
+                "score_aggregation": (
+                    "weighted_structured_anchors"
+                    if case_rubric and any(q.score_anchors for q in case_rubric.questions)
+                    else "model_reported"
+                ),
+            },
         )
 
 
