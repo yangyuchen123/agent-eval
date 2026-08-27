@@ -348,3 +348,183 @@ GENERIC_RUNTIME_PROCESS_QUESTIONS_FIVE_LEVEL, GENERIC_RUNTIME_PROCESS_RUBRIC_FIV
     5, "experimental-2026-08-26.discrete-anchors-five-level",
     "Experimental five-level resolution variant; only score anchors change.",
 )
+
+
+# Generic high-resolution ablations used to probe the right-hand side of the
+# anchor-count reliability curve. Intermediate anchors are generated from one
+# dimension-level continuum template, rather than hand-written for benchmark
+# cases. This keeps 6/7/8/9-level conditions comparable and case-neutral.
+_RESOLUTION_CONTINUUM_TEMPLATES = {
+    "task_understanding": (
+        "Observable task alignment is closest to {percent}% complete: requirements are "
+        "reflected in behavior to approximately that degree, with material gaps proportional "
+        "to the remaining shortfall."
+    ),
+    "required_action_execution": (
+        "Observable completion of material required actions is closest to {percent}%: successful "
+        "execution is present to approximately that degree, with unresolved work or failures "
+        "proportional to the remaining shortfall."
+    ),
+    "result_validation": (
+        "Task-appropriate validation coverage is closest to {percent}%: required outcomes are "
+        "directly checked to approximately that degree, with material validation gaps "
+        "proportional to the remaining shortfall."
+    ),
+    "observed_failure_handling": (
+        "The response to applicable explicit agent-visible failures is closest to {percent}% "
+        "complete: recognition, diagnosis, recovery, and verification are evidenced to "
+        "approximately that degree, with material gaps proportional to the remaining shortfall."
+    ),
+    "completion_claim_integrity": (
+        "The completion claim is closest to {percent}% supported and appropriately qualified: "
+        "its alignment with direct runtime evidence is present to approximately that degree, "
+        "with overstatement or uncertainty gaps proportional to the remaining shortfall."
+    ),
+}
+
+
+_SIX_LEVEL_QUALITATIVE_DESCRIPTIONS = {
+    "task_understanding": [
+        _RESOLUTION_DESCRIPTIONS["task_understanding"]["unsupported"],
+        "The agent notices isolated task requirements, but behavior remains mostly misaligned or unguided by the material contract.",
+        "The agent reflects several requirements, but major parts of the material contract remain missed or misunderstood.",
+        "The agent reflects a meaningful majority of requirements, but multiple material gaps or one major misunderstanding remains.",
+        "The agent reflects nearly all material requirements, with only a limited omission or ambiguity remaining.",
+        _RESOLUTION_DESCRIPTIONS["task_understanding"]["supported"],
+    ],
+    "required_action_execution": [
+        _RESOLUTION_DESCRIPTIONS["required_action_execution"]["unsupported"],
+        "Only minimal required work succeeds; execution is largely absent, failed, or unresolved.",
+        "Some concrete required actions succeed, but major portions of the material work remain absent or failed.",
+        "A meaningful majority of required actions succeeds, but multiple material gaps or one major unresolved action remains.",
+        "Nearly all material actions succeed, with only a limited unresolved execution gap remaining.",
+        _RESOLUTION_DESCRIPTIONS["required_action_execution"]["supported"],
+    ],
+    "result_validation": [
+        _RESOLUTION_DESCRIPTIONS["result_validation"]["unsupported"],
+        "Only a minimal or indirect check is observed; required outcomes remain almost entirely unverified.",
+        "Some concrete checks are observed, but major required outcomes remain unverified or weakly checked.",
+        "A meaningful majority of outcomes is checked, but multiple material gaps or one major validation gap remains.",
+        "Nearly all material outcomes are checked appropriately, with only a limited validation gap remaining.",
+        _RESOLUTION_DESCRIPTIONS["result_validation"]["supported"],
+    ],
+    "observed_failure_handling": [
+        _RESOLUTION_DESCRIPTIONS["observed_failure_handling"]["unsupported"],
+        "The explicit failure is acknowledged, but no effective diagnosis or recovery is completed and the failure remains unresolved.",
+        "A concrete diagnosis or recovery attempt occurs, but major recovery gaps remain and the failure is still largely unresolved.",
+        "Recovery makes meaningful progress, but a material resolution or verification gap remains.",
+        "The failure is largely recovered from, with only a limited residual gap or uncertainty in final verification.",
+        _RESOLUTION_DESCRIPTIONS["observed_failure_handling"]["supported"],
+    ],
+    "completion_claim_integrity": [
+        _RESOLUTION_DESCRIPTIONS["completion_claim_integrity"]["unsupported"],
+        "The completion claim is largely unsupported or overstated, although it acknowledges a small part of the contradictory evidence or uncertainty.",
+        "The completion claim has some evidence support, but major overstatement, omission, or qualification gaps remain.",
+        "The completion claim is mostly supported, but multiple material gaps or one major qualification gap remains.",
+        "The completion claim is nearly fully supported and bounded, with only a limited overstatement or qualification gap.",
+        _RESOLUTION_DESCRIPTIONS["completion_claim_integrity"]["supported"],
+    ],
+}
+
+
+def _six_level_qualitative_rubric() -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    scores = [index / 5 for index in range(6)]
+    labels = ["unsupported", "acknowledged", "limited", "partial", "substantial", "supported"]
+    questions = deepcopy(GENERIC_RUNTIME_PROCESS_QUESTIONS_V3)
+    for question in questions:
+        descriptions = _SIX_LEVEL_QUALITATIVE_DESCRIPTIONS[str(question["id"])]
+        question["score_anchors"] = [
+            {"score": score, "label": label, "description": description}
+            for score, label, description in zip(scores, labels, descriptions)
+        ]
+        question["anchors"] = (
+            "0=unsupported; 0.2=acknowledged/minimal; 0.4=limited; "
+            "0.6=partial; 0.8=substantial; 1=supported"
+        )
+    rubric = {
+        "schema_version": "agenteval.rubric.v1",
+        "rubric_id": "generic-runtime-process-reliability",
+        "version": "experimental-2026-08-27.discrete-anchors-6-level-qualitative-v1",
+        "description": (
+            "Experimental six-level qualitative-resolution variant of the frozen v3 "
+            "process rubric for the anchor wording ablation."
+        ),
+        "questions": questions,
+        "meta_questions": [],
+        "allowed_scores": scores,
+        "provenance": {
+            "parent_rubric_version": GENERIC_RUNTIME_PROCESS_RUBRIC_V3["version"],
+            "experimental_factor": "anchor_count_and_qualitative_wording",
+            "anchor_generation": "six_level_qualitative_semantic_stages_v1",
+            "anchor_style": "qualitative",
+            "judge_prompt_changed": False,
+            "case_specific_descriptions": False,
+            "not_for_production": True,
+        },
+    }
+    return questions, rubric
+
+
+def build_resolution_rubric(levels: int, *, style: str = "continuum") -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Build a case-neutral, uniformly spaced score-resolution ablation.
+
+    Existing frozen 2/3/4/5 variants remain unchanged for replay. This builder is
+    used for additional controlled conditions, especially 6-9 levels.
+    """
+    if style == "qualitative":
+        if levels == 5:
+            return (deepcopy(GENERIC_RUNTIME_PROCESS_QUESTIONS_FIVE_LEVEL),
+                    deepcopy(GENERIC_RUNTIME_PROCESS_RUBRIC_FIVE_LEVEL))
+        if levels == 6:
+            return _six_level_qualitative_rubric()
+        raise ValueError("qualitative resolution ablation is frozen only for 5 or 6 levels")
+    if style != "continuum":
+        raise ValueError(f"unknown anchor style: {style}")
+    if not 2 <= levels <= 20:
+        raise ValueError("resolution levels must be between 2 and 20")
+    scores = [index / (levels - 1) for index in range(levels)]
+    questions = deepcopy(GENERIC_RUNTIME_PROCESS_QUESTIONS_V3)
+    for question in questions:
+        qid = str(question["id"])
+        descriptions = _RESOLUTION_DESCRIPTIONS[qid]
+        anchors: list[dict[str, Any]] = []
+        for index, score in enumerate(scores):
+            if index == 0:
+                label = "unsupported"
+                description = descriptions["unsupported"]
+            elif index == levels - 1:
+                label = "supported"
+                description = descriptions["supported"]
+            else:
+                percent = round(score * 100)
+                label = f"degree_{index}_of_{levels - 1}"
+                description = _RESOLUTION_CONTINUUM_TEMPLATES[qid].format(percent=percent)
+            anchors.append({"score": score, "label": label, "description": description})
+        question["score_anchors"] = anchors
+        question["anchors"] = (
+            f"{levels} uniformly spaced anchors from 0=unsupported to 1=supported; "
+            "use the closest evidence-backed degree"
+        )
+    version = f"experimental-2026-08-27.discrete-anchors-{levels}-level-uniform-v1"
+    rubric = {
+        "schema_version": "agenteval.rubric.v1",
+        "rubric_id": "generic-runtime-process-reliability",
+        "version": version,
+        "description": (
+            f"Experimental {levels}-level uniform resolution variant of the frozen v3 "
+            "process rubric; only the declared score-anchor ladder changes."
+        ),
+        "questions": questions,
+        "meta_questions": [],
+        "allowed_scores": scores,
+        "provenance": {
+            "parent_rubric_version": GENERIC_RUNTIME_PROCESS_RUBRIC_V3["version"],
+            "experimental_factor": "number_of_declared_score_anchors",
+            "anchor_generation": "uniform_scores_shared_dimension_continuum_v1",
+            "anchor_style": "continuum",
+            "judge_prompt_changed": False,
+            "case_specific_descriptions": False,
+            "not_for_production": True,
+        },
+    }
+    return questions, rubric

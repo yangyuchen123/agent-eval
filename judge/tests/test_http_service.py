@@ -72,3 +72,34 @@ async def test_http_service_records_selected_discrete_anchor():
     scoring = response.json()["provenance"]["scoring"]
     assert scoring["scoring_mode"] == "discrete_anchor"
     assert scoring["selected_anchor"]["score"] == 0.5
+
+
+def test_default_evidence_factory_rejects_path_outside_allowlist(tmp_path, monkeypatch):
+    from agentjudge.http_service import default_evidence_factory
+    from agentjudge.models import JudgeRequest
+    allowed = tmp_path / "allowed"
+    allowed.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    monkeypatch.setenv("JUDGE_ALLOWED_ROOTS", str(allowed))
+    request = JudgeRequest(
+        case={"case_id": "c", "task": "x"}, rubric={}, agent_output="",
+        trace_ref={"scheme": "harbor", "trial_dir": str(outside)},
+    )
+    with pytest.raises(ValueError, match="outside JUDGE_ALLOWED_ROOTS"):
+        default_evidence_factory(request)
+
+
+def test_default_evidence_factory_accepts_harbor_path_inside_allowlist(tmp_path, monkeypatch):
+    import json
+    from agentjudge.http_service import default_evidence_factory
+    from agentjudge.models import JudgeRequest
+    trial = tmp_path / "trial"
+    (trial / "agent").mkdir(parents=True)
+    (trial / "agent" / "trajectory.json").write_text(json.dumps({"steps": []}))
+    monkeypatch.setenv("JUDGE_ALLOWED_ROOTS", str(tmp_path))
+    request = JudgeRequest(
+        case={"case_id": "c", "task": "x"}, rubric={}, agent_output="",
+        trace_ref={"scheme": "harbor", "trial_dir": str(trial)},
+    )
+    assert default_evidence_factory(request).manifest()["record_count"] == 0

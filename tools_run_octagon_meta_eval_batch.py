@@ -23,6 +23,12 @@ from agenteval.meta_eval import (EvidenceSnapshot, GENERIC_RUNTIME_PROCESS_RUBRI
 load_project_dotenv()
 
 def _selected_rubric() -> tuple[dict, dict[str, dict]]:
+    requested_levels = os.environ.get("META_EVAL_ANCHOR_LEVELS")
+    if requested_levels:
+        from agenteval.meta_eval import build_resolution_rubric
+        anchor_style = os.environ.get("META_EVAL_ANCHOR_STYLE", "continuum")
+        questions, rubric = build_resolution_rubric(int(requested_levels), style=anchor_style)
+        return rubric, {str(q["id"]): dict(q) for q in questions}
     version = os.environ.get("META_EVAL_RUBRIC_VERSION", "current")
     if version == "v4":
         from agenteval.meta_eval import GENERIC_RUNTIME_PROCESS_RUBRIC_V4

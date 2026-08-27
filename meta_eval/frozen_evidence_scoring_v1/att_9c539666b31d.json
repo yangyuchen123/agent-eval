@@ -1,0 +1,21 @@
+{
+  "schema_version": "agenteval.frozen_evidence_bundle.v1",
+  "case_id": "att_9c539666b31d",
+  "question_id": "observed_failure_handling",
+  "facts": [
+    {"fact_id": "F1", "evidence_refs": ["trace.jsonl:13"], "evidence_class": "direct_runtime_event", "statement": "A validation run returned exit code 1 with `IndentationError: unexpected indent` in `portfolio_optimizer.py`."},
+    {"fact_id": "F2", "evidence_refs": ["trace.jsonl:14", "trace.jsonl:15"], "evidence_class": "direct_runtime_event", "statement": "The agent read the offending lines and edited the indentation."},
+    {"fact_id": "F3", "evidence_refs": ["trace.jsonl:16"], "evidence_class": "direct_runtime_event", "statement": "The next run returned exit code 0 and generated 242 navigation and weight records, but two reported metrics were infinite."},
+    {"fact_id": "F4", "evidence_refs": ["trace.jsonl:17", "trace.jsonl:21"], "evidence_class": "direct_runtime_event", "statement": "The agent made additional edits to benchmark-return and excess-return calculations after observing the infinite metrics."},
+    {"fact_id": "F5", "evidence_refs": ["trace.jsonl:22"], "evidence_class": "direct_runtime_event", "statement": "A final command returned exit code 0, ran the program, passed Python compilation, checked 242 result rows, ten weights per row, and finite numeric metrics."},
+    {"fact_id": "F6", "evidence_refs": ["trace.jsonl:22"], "evidence_class": "direct_runtime_event", "statement": "The final validation directly checked the listed structural and finiteness assertions; the frozen evidence does not contain a post-repair check for every other strategy requirement outside those listed assertions."}
+  ],
+  "claim_set": [
+    {"claim_id": "C1", "statement": "An explicit code-execution failure occurred during validation."},
+    {"claim_id": "C2", "statement": "The agent diagnosed and edited the code after the failure."},
+    {"claim_id": "C3", "statement": "A later validation command completed successfully and passed the listed assertions."},
+    {"claim_id": "C4", "statement": "The final validation scope was limited to the checks explicitly listed in the command."}
+  ],
+  "missing_facts": ["A post-repair validation event explicitly rechecking every requested strategy requirement beyond the listed structural, compilation, and finiteness checks."],
+  "contradictions": []
+}

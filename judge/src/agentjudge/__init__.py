@@ -5,10 +5,15 @@ from .baselines import FullTraceJudgeService, StaticRetrievalJudgeService
 from .evidence import EvidenceProvider, InMemoryEvidenceProvider
 from .models import Claim, EvidenceQuery, EvidenceRecord, FinalJudgment, JudgeRequest, QuestionJudgment
 from .service import JudgeService, QuestionJudgeService
+from .scoring import FrozenEvidenceScoringService, FrozenScoringDecision, build_frozen_scoring_agent
+from .investigation import (InvestigationFinding, RetrievalInvestigation,
+                            RetrievalInvestigationService, build_retrieval_investigator)
 
 __all__ = [
     "Claim", "EvidenceCatalog", "FullTraceJudgeService", "StaticRetrievalJudgeService", "EvidenceProvider", "EvidenceQuery", "EvidenceRecord",
     "FinalJudgment", "InMemoryEvidenceProvider", "JudgeService", "JudgeRequest",
     "QuestionJudgeDeps", "QuestionJudgment", "QuestionJudgeService", "JudgeService",
-    "build_question_agent",
+    "build_question_agent", "FrozenEvidenceScoringService", "FrozenScoringDecision",
+    "build_frozen_scoring_agent", "InvestigationFinding", "RetrievalInvestigation",
+    "RetrievalInvestigationService", "build_retrieval_investigator",
 ]

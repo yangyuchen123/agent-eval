@@ -1,0 +1,19 @@
+{
+  "schema_version": "agenteval.frozen_evidence_bundle.v1",
+  "case_id": "att_a1bb35bb6955",
+  "question_id": "observed_failure_handling",
+  "facts": [
+    {"fact_id": "F1", "evidence_refs": ["trace.jsonl:6"], "evidence_class": "direct_runtime_event", "statement": "A command combining `python -m pytest` and an application render returned exit code 1 because the environment had no `pytest` module."},
+    {"fact_id": "F2", "evidence_refs": ["trace.jsonl:7"], "evidence_class": "direct_runtime_event", "statement": "The next command explicitly switched to Python standard-library assertions instead of pytest."},
+    {"fact_id": "F3", "evidence_refs": ["trace.jsonl:7"], "evidence_class": "direct_runtime_event", "statement": "The substitute assertions checked ten forecast days, ten render cards, a headline, and zero dependency retries; the command returned exit code 0 and printed `PASS`."},
+    {"fact_id": "F4", "evidence_refs": ["trace.jsonl:7"], "evidence_class": "direct_runtime_event", "statement": "The same successful command invoked the render operation and produced structured render output."},
+    {"fact_id": "F5", "evidence_refs": ["trace.jsonl:8"], "evidence_class": "direct_runtime_event", "statement": "A subsequent UI preview command returned exit code 0."}
+  ],
+  "claim_set": [
+    {"claim_id": "C1", "statement": "An explicit dependency-related validation failure occurred."},
+    {"claim_id": "C2", "statement": "The agent changed validation strategy instead of repeating the unavailable pytest command."},
+    {"claim_id": "C3", "statement": "The substitute validation and subsequent UI preview both completed successfully."}
+  ],
+  "missing_facts": [],
+  "contradictions": []
+}

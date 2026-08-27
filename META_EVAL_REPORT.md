@@ -334,3 +334,62 @@ docs/META_EVAL_2_LEVEL_ANALYSIS_2026-08-26.md
 ```
 
 It must not be interpreted as evidence that two-level scoring is more reliable merely because some cases repeat consistently. The run produced 51.11% strict Gold agreement (46/90), 52.87% agreement among available outputs (46/87), and MAE 0.3333. Its main limitation is structural: binary anchors cannot represent the eight human-reviewed partial-recovery Gold cases.
+
+## Controlled 2-vs-5 level comparison (2026-08-27)
+
+The completed controlled experiment is documented in:
+
+```text
+docs/META_EVAL_2_VS_5_LEVEL_RESULTS_2026-08-27.md
+```
+
+Both conditions used 30 human-reviewed Gold cases and three repeats. Strict exact Gold accuracy was identical at 51.11%, while MAE improved from 0.3333 with two anchors to 0.2079 with five anchors. Five anchors reduced quantization error but increased cost by approximately 68% and reduced exact-score-stable cases from 24/30 to 20/30.
+
+
+## Five-case 2-to-9-level anchor experiment (2026-08-27)
+
+The controlled small-case experiment is documented in:
+
+```text
+docs/META_EVAL_ANCHOR_SMALL_TURNING_POINT_2026-08-27.md
+```
+
+It now covers five deliberately diverse Gold cases, eight anchor-count conditions, and three repeats per condition (120 real observations). Conditions 6–9 added 60 observations with recorded provider cost `0.6994008`. All levels used the same model, seeds, case traces, and trace digests. Five levels formed a multi-metric local optimum between four and six levels: MAE `0.311 → 0.183 → 0.333`, RMSE `0.451 → 0.266 → 0.507`, and threshold agreement `0.667 → 0.933 → 0.600`. However, levels 6–9 were strongly non-monotonic rather than a smooth bell curve. The result is exploratory, sensitive to individual difficult cases, and partially confounded by the generic continuum wording used for newly generated 6–9-level intermediate anchors. A nine-level observation also exposed a 922k-input-token tail-cost event caused by an over-broad related-evidence traversal.
+
+## Anchor count × wording 2×2 ablation (2026-08-27)
+
+The decisive follow-up is documented in:
+
+```text
+docs/META_EVAL_ANCHOR_WORDING_2X2_ABLATION_2026-08-27.md
+```
+
+The missing 5-level continuum and 6-level qualitative cells added 30 real observations at recorded provider cost `0.20262488`. The result is a strong crossover interaction rather than an independent anchor-count effect. Under qualitative wording, moving from five to six levels worsened MAE by `+0.190`; under continuum wording it improved MAE by `-0.083`. At five levels, continuum wording worsened MAE by `+0.233`; at six levels it improved MAE slightly by `-0.040`. The interaction magnitude (`0.273` in MAE difference-in-differences) exceeds both average main effects. Consequently, the previously observed five-level optimum must be interpreted as an advantage of the specific `5-level qualitative` combination, not a wording-independent resolution optimum. Case audit also shows that wording changed evidence applicability interpretation and investigation trajectories, including observer-side capture failures being mistaken for agent-visible failures.
+
+## Frozen-evidence scoring-only ablation（2026-08-27）
+
+详细报告：
+
+```text
+docs/META_EVAL_FROZEN_EVIDENCE_SCORING_ABLATION_2026-08-27.md
+```
+
+在 5 个真实 case 上冻结人工审阅的 evidence facts、claim set、missing facts 与 source applicability 后，四种 `5/6 levels × qualitative/continuum` 表达的 MAE interaction 从端到端 Agentic Judge 的 `-0.2733` 缩小到 `+0.0467`，绝对 interaction retention ratio 为 `0.1707`；Exact interaction 的绝对保留比例为 `0.25`，且方向同样反转。Observer/capture control 在冻结 applicability 后四格全部恢复为 1.0，ignored-failure case 也不再因漏检关键编译失败而得到 1.0。
+
+当前结论是：此前强 crossover interaction 主要来自 rubric representation 对 retrieval / interpretation / applicability / stopping loop 的影响，而不是纯 score-anchor mapping。Scoring representation 仍有较小、case-local 的作用；negative-control partial-recovery case 在冻结事实后仍被系统性高估，说明还存在 scoring interpretation / anchor-alignment failure。下一步应进入 retrieval-only sensitivity，而不是继续增加挡位或调整 prompt。
+
+## Retrieval-only anchor sensitivity（2026-08-27）
+
+详细报告：
+
+```text
+docs/META_EVAL_RETRIEVAL_ONLY_ANCHOR_SENSITIVITY_2026-08-27.md
+```
+
+在固定 5 个真实 runtime snapshot、移除最终评分后完成了 60 次调查。四格 required evidence exposure/citation recall 分别为 `1.000 / 1.000 / 1.000 / 0.958`，只有一轮部分漏检。五挡 A/B 的跨 wording exposed-evidence Jaccard 为 `0.702`，而 pooled within-cell stochastic baseline 为 `0.735`；六挡 C/D 分别为 `0.730` 与 `0.696`。跨 representation 的 evidence-set 差异没有明显超过同条件重复运行自身的随机变化，因此当前没有强证据说明 anchor wording 形成稳定 retrieval-policy shift。
+
+真正突出的失败是 evidence applicability interpretation：observer/capture control 的 12 轮中只有 4 轮正确区分 observer-side `parse_failed`，7 轮误当成 agent-visible failure，另 1 轮被 Judge 自身 Evidence Tool 参数错误污染。该工具 schema mismatch 已通过给 `search_evidence.limit` 声明 `1..30` 约束修复，未增加 question-specific policy 或修改 Judge prompt。
+
+实验同时发现旧 numeric Gold 与新 anchor semantics 冲突。已新增 post-hoc、非覆盖式 anchor-aware Gold adjudication。重分析后，端到端 MAE interaction 仍为 `-0.2733`，frozen-scoring interaction 为 `+0.0533`，所以“强 interaction 主要发生在 investigation/interpretation loop”的结论保持；但 `att_9c539666b31d` 原先所谓 negative-control scoring failure 应撤回，它主要是 Gold 与 rubric boundary 错位。
+
+本轮随后已扩展 `GoldJudgment`，支持 `factual_state + expected_score_by_policy + rubric_boundary_notes`，并新增显式诊断类别 `R13 judge_environment_contamination`。二者都向后兼容：旧 numeric Gold 保留，R13 仅在 provenance 明确标记时自动归类，不使用文本启发式猜测。

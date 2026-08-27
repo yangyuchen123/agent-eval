@@ -412,3 +412,39 @@ def test_runtime_evidence_index_filters_by_agent():
     result = index.grep("Agent", agent_id="b")
     assert result["count"] == 1
     assert result["hits"][0]["record"]["agent_id"] == "b"
+
+
+def test_harbor_adapter_reads_trial_without_exposing_verifier_score(tmp_path: Path):
+    trial = tmp_path / "job" / "trial-1"
+    (trial / "agent").mkdir(parents=True)
+    (trial / "artifacts" / "logs" / "artifacts").mkdir(parents=True)
+    (trial / "specs").mkdir()
+    (trial / "trial.log").write_text("done", encoding="utf-8")
+    (trial / "result.json").write_text(json.dumps({
+        "id": "result-1", "task_name": "task", "trial_uri": str(trial),
+        "task_checksum": "sha256:x", "agent_info": {
+            "name": "codex", "version": "1", "model_info": {"name": "m", "provider": "p"}},
+        "agent_result": {"n_input_tokens": 3},
+        "verifier_result": {"rewards": {"reward": 0.2}},
+        "exception_info": None,
+    }), encoding="utf-8")
+    (trial / "config.json").write_text("{}", encoding="utf-8")
+    (trial / "specs" / "task.json").write_text(json.dumps({
+        "task_id": "task@1", "instruction": "Do it"}), encoding="utf-8")
+    (trial / "agent" / "trajectory.json").write_text(json.dumps({
+        "agent": {"name": "codex"}, "steps": [{
+            "step_id": 1, "source": "agent", "message": "write",
+            "tool_calls": [{"tool_call_id": "c1", "function_name": "exec_command", "arguments": {"cmd": "echo ok"}}],
+            "observation": {"results": [{"source_call_id": "c1", "content": "ok"}]},
+        }]}), encoding="utf-8")
+    (trial / "artifacts" / "logs" / "artifacts" / "final_output.json").write_text(
+        '{"ok":true}', encoding="utf-8")
+
+    from agenteval import HarborAdapter
+    sample = HarborAdapter(trial).iter_samples()[0]
+    assert sample.backend == "harbor"
+    assert sample.output == '{"ok":true}'
+    assert sample.context["trace_ref"]["scheme"] == "harbor"
+    assert sample.conversation[0].tool_calls[0].result == "ok"
+    assert "verifier_result" not in sample.runtime_result
+    assert "reward" not in json.dumps(sample.runtime_result)

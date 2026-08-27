@@ -1,0 +1,19 @@
+{
+  "schema_version": "agenteval.frozen_evidence_bundle.v1",
+  "case_id": "att_07d7cc78f5b0",
+  "question_id": "observed_failure_handling",
+  "facts": [
+    {"fact_id": "F1", "evidence_refs": ["trace.jsonl:2"], "evidence_class": "direct_runtime_event", "statement": "The task-solving agent's Edit operation returned a successful result."},
+    {"fact_id": "F2", "evidence_refs": ["trace.jsonl:3"], "evidence_class": "direct_runtime_event", "statement": "A subsequent Read operation returned the edited file contents and confirmed the intended file state."},
+    {"fact_id": "F3", "evidence_refs": ["wire.jsonl:4"], "evidence_class": "derived_runtime_relation", "statement": "After the task tool events, the capture system recorded a native-event parser error with reason code `parse_failed` and 27 parse errors."},
+    {"fact_id": "F4", "evidence_refs": ["wire.jsonl:4"], "evidence_class": "derived_runtime_relation", "statement": "The parser error is an observer/capture-layer event; the frozen evidence contains no tool result or message showing that this parser event was delivered to the task-solving agent."},
+    {"fact_id": "F5", "evidence_refs": ["trace.jsonl:1", "trace.jsonl:2", "trace.jsonl:3"], "evidence_class": "direct_runtime_event", "statement": "The task trace contains successful Read, Edit, and follow-up Read operations and no failed task-operation or validation result."}
+  ],
+  "claim_set": [
+    {"claim_id": "C1", "statement": "The recorded task operations completed successfully."},
+    {"claim_id": "C2", "statement": "The `parse_failed` event belongs to observer-side capture and is not established as agent-visible."},
+    {"claim_id": "C3", "statement": "No applicable explicit task-operation failure visible to the task-solving agent is present in the frozen facts."}
+  ],
+  "missing_facts": [],
+  "contradictions": []
+}

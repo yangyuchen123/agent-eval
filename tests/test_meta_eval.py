@@ -347,3 +347,95 @@ def test_gold_anchor_experiment_manifest_is_offline_and_four_conditioned(tmp_pat
     # only guards the public Gold schema used by the experiment.
     from agenteval.meta_eval import load_gold_dir
     assert load_gold_dir(gold_dir)[0].question_id == "observed_failure_handling"
+
+
+def test_uniform_resolution_rubric_supports_six_through_nine_levels():
+    from agenteval import Rubric
+    from agenteval.meta_eval import build_resolution_rubric
+
+    endpoint_descriptions = None
+    for levels in range(6, 10):
+        questions, data = build_resolution_rubric(levels)
+        rubric = Rubric.from_dict(data)
+        expected = [index / (levels - 1) for index in range(levels)]
+        assert list(rubric.allowed_scores) == pytest.approx(expected)
+        assert data["provenance"]["judge_prompt_changed"] is False
+        assert data["provenance"]["case_specific_descriptions"] is False
+        assert all(
+            [anchor.score for anchor in question.score_anchors] == pytest.approx(expected)
+            for question in rubric.questions
+        )
+        failure_question = next(q for q in questions if q["id"] == "observed_failure_handling")
+        endpoints = (
+            failure_question["score_anchors"][0]["description"],
+            failure_question["score_anchors"][-1]["description"],
+        )
+        endpoint_descriptions = endpoint_descriptions or endpoints
+        assert endpoints == endpoint_descriptions
+        assert all(
+            "% complete" in anchor["description"]
+            for anchor in failure_question["score_anchors"][1:-1]
+        )
+
+
+def test_uniform_resolution_rubric_rejects_unbounded_prompt_growth():
+    from agenteval.meta_eval import build_resolution_rubric
+
+    with pytest.raises(ValueError):
+        build_resolution_rubric(1)
+    with pytest.raises(ValueError):
+        build_resolution_rubric(21)
+
+
+def test_anchor_wording_ablation_reproduces_five_qualitative_and_builds_six_qualitative():
+    from agenteval import Rubric
+    from agenteval.meta_eval import (GENERIC_RUNTIME_PROCESS_RUBRIC_FIVE_LEVEL,
+                                     build_resolution_rubric)
+
+    five_questions, five_data = build_resolution_rubric(5, style="qualitative")
+    assert five_data == GENERIC_RUNTIME_PROCESS_RUBRIC_FIVE_LEVEL
+    assert len(five_questions[0]["score_anchors"]) == 5
+
+    six_questions, six_data = build_resolution_rubric(6, style="qualitative")
+    six = Rubric.from_dict(six_data)
+    assert list(six.allowed_scores) == pytest.approx([0, .2, .4, .6, .8, 1])
+    assert six_data["provenance"]["anchor_style"] == "qualitative"
+    assert six_data["provenance"]["case_specific_descriptions"] is False
+    failure = next(q for q in six_questions if q["id"] == "observed_failure_handling")
+    assert [a["label"] for a in failure["score_anchors"]] == [
+        "unsupported", "acknowledged", "limited", "partial", "substantial", "supported"
+    ]
+    assert all("% complete" not in a["description"] for a in failure["score_anchors"])
+
+
+def test_anchor_wording_ablation_rejects_unknown_style_or_qualitative_level():
+    from agenteval.meta_eval import build_resolution_rubric
+
+    with pytest.raises(ValueError):
+        build_resolution_rubric(6, style="unknown")
+    with pytest.raises(ValueError):
+        build_resolution_rubric(7, style="qualitative")
+
+
+def test_gold_supports_policy_specific_expected_scores_without_overwriting_legacy():
+    gold = GoldJudgment(
+        "c1", "q1", 0.0, "partially_supported",
+        factual_state="Failure was acknowledged but remained unresolved.",
+        expected_score_by_policy={"five-level": 0.25, "six-level": 0.2},
+        rubric_boundary_notes="Use result_validation for broader contract coverage.",
+    )
+    assert gold.score_for() == 0.0
+    assert gold.score_for("five-level") == 0.25
+    assert gold.score_for("six-level") == 0.2
+    assert GoldJudgment.from_dict(gold.to_dict()) == gold
+
+
+def test_failure_taxonomy_can_record_judge_environment_contamination_explicitly():
+    classify_failure = __import__(
+        "agenteval.meta_eval", fromlist=["classify_failure"]
+    ).classify_failure
+    failures = classify_failure(
+        None,
+        {"provenance": {"judge_environment_contamination": True}},
+    )
+    assert FailureCode.JUDGE_ENVIRONMENT_CONTAMINATION in failures

@@ -1,0 +1,40 @@
+{
+  "schema_version": "agenteval.anchor_aware_gold_adjudication.v1",
+  "question_id": "observed_failure_handling",
+  "status": "human_adjudication_candidate",
+  "supersedes_original_numeric_gold": false,
+  "purpose": "Preserve the original Gold while recording the expected anchor implied by each experimental rubric ladder.",
+  "conditions": {
+    "A_5_qualitative": {"levels": 5, "style": "qualitative"},
+    "B_5_continuum": {"levels": 5, "style": "continuum"},
+    "C_6_qualitative": {"levels": 6, "style": "qualitative"},
+    "D_6_continuum": {"levels": 6, "style": "continuum"}
+  },
+  "cases": {
+    "att_fa8655f8ce1d": {
+      "factual_state": "An explicit compile/validation failure was visible and acknowledged, but no successful recovery or substitute validation occurred.",
+      "expected_by_condition": {"A_5_qualitative": 0.25, "B_5_continuum": 0.25, "C_6_qualitative": 0.2, "D_6_continuum": 0.2},
+      "reason": "The new ladders explicitly assign their first nonzero anchor to acknowledged or minimally addressed but unresolved failure. Keeping legacy Gold=0 penalizes exact compliance with the declared anchor semantics."
+    },
+    "att_8ca4f9ec3ba9": {
+      "factual_state": "The agent attempted concrete recovery from the missing preview dependency, but the retry failed and no successful visual validation followed.",
+      "expected_by_condition": {"A_5_qualitative": 0.5, "B_5_continuum": 0.5, "C_6_qualitative": 0.4, "D_6_continuum": 0.4},
+      "reason": "Five-level ladders represent partial recovery at 0.5; the six-level ladders' closest semantic state is limited recovery with major gaps at 0.4."
+    },
+    "att_9c539666b31d": {
+      "factual_state": "The observed IndentationError and later non-finite metric anomaly were followed by corrective edits and a final successful compile, structural, and finite-value validation.",
+      "expected_by_condition": {"A_5_qualitative": 1.0, "B_5_continuum": 1.0, "C_6_qualitative": 1.0, "D_6_continuum": 1.0},
+      "reason": "For this question, observable failures were recovered from. Missing proof that every broader task requirement was revalidated belongs primarily to result_validation, not observed_failure_handling. The old 0.5 label crossed rubric boundaries."
+    },
+    "att_a1bb35bb6955": {
+      "factual_state": "The unavailable pytest path was explicitly replaced with successful standard-library assertions and successful rendering/preview checks.",
+      "expected_by_condition": {"A_5_qualitative": 1.0, "B_5_continuum": 1.0, "C_6_qualitative": 1.0, "D_6_continuum": 1.0},
+      "reason": "The observable failure was diagnosed and successfully recovered from."
+    },
+    "att_07d7cc78f5b0": {
+      "factual_state": "The parse_failed record is an observer/capture-layer event not established as visible to the task-solving agent; task operations themselves succeeded.",
+      "expected_by_condition": {"A_5_qualitative": 1.0, "B_5_continuum": 1.0, "C_6_qualitative": 1.0, "D_6_continuum": 1.0},
+      "reason": "No applicable agent-visible task-operation failure is established."
+    }
+  }
+}

@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from .evidence import EvidenceProvider
 from .models import EvidenceQuery, QuestionJudgment
@@ -88,7 +90,7 @@ def build_question_agent(model: Any) -> Any:
         message_id: str | None = None,
         before: str | None = None,
         after: str | None = None,
-        limit: int = 12,
+        limit: Annotated[int, Field(ge=1, le=30)] = 12,
     ) -> list[dict[str, Any]]:
         records = ctx.deps.evidence.search(EvidenceQuery(
             text=query, source=source, event_type=event_type or [], tool_name=tool_name,

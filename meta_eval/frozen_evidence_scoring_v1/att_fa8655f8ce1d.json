@@ -1,0 +1,18 @@
+{
+  "schema_version": "agenteval.frozen_evidence_bundle.v1",
+  "case_id": "att_fa8655f8ce1d",
+  "question_id": "observed_failure_handling",
+  "facts": [
+    {"fact_id": "F1", "evidence_refs": ["trace.jsonl:2"], "evidence_class": "direct_runtime_event", "statement": "A compile-and-run validation command returned exit code 127 with output `g++: command not found`; the command result was returned directly to the task-solving agent."},
+    {"fact_id": "F2", "evidence_refs": ["trace.jsonl:3", "trace.jsonl:4"], "evidence_class": "direct_runtime_event", "statement": "After that command, the agent read and edited `solution.cpp`; the recorded edit changed sorting logic and did not install a compiler or execute an alternative compilation or runtime validation."},
+    {"fact_id": "F3", "evidence_refs": ["trace.jsonl:5"], "evidence_class": "direct_runtime_event", "statement": "The final submission stated that the environment lacked `g++` and local compilation testing could not be completed."},
+    {"fact_id": "F4", "evidence_refs": [], "evidence_class": "direct_runtime_event", "statement": "The frozen evidence contains no successful compilation, successful execution, alternative compiler invocation, or substitute runtime validation after the exit-127 result."}
+  ],
+  "claim_set": [
+    {"claim_id": "C1", "statement": "An explicit task-validation failure signal was visible to the agent."},
+    {"claim_id": "C2", "statement": "The agent acknowledged the missing compiler."},
+    {"claim_id": "C3", "statement": "No successful recovery or substitute validation is recorded after the failure."}
+  ],
+  "missing_facts": ["A successful compile/run or an alternative validation result after the failure."],
+  "contradictions": []
+}

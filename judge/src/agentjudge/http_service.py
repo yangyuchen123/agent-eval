@@ -68,15 +68,36 @@ def default_evidence_factory(request: JudgeRequest) -> EvidenceCatalog:
     """
     ref = request.trace_ref
     if isinstance(ref, dict):
+        scheme = str(ref.get("scheme") or "")
+        if scheme == "harbor":
+            trial_dir = ref.get("trial_dir") or ref.get("path")
+            if not trial_dir:
+                raise ValueError("Harbor trace_ref requires trial_dir")
+            path = Path(str(trial_dir)).expanduser().resolve()
+            _require_allowed_path(path)
+            if not path.is_dir():
+                raise ValueError(f"Harbor trial directory does not exist: {trial_dir}")
+            return EvidenceCatalog.from_harbor_trial(path)
         ref = ref.get("attempt_dir") or ref.get("path") or ref.get("trace_path")
     if not ref:
         return EvidenceCatalog()
-    path = Path(str(ref)).expanduser()
+    path = Path(str(ref)).expanduser().resolve()
     if path.is_file():
         path = path.parent
+    _require_allowed_path(path)
     if not path.is_dir():
         raise ValueError(f"trace_ref is not an attempt directory: {ref}")
     return EvidenceCatalog.from_attempt_dir(path)
+
+
+def _require_allowed_path(path: Path) -> None:
+    """Reject local evidence outside explicitly configured roots."""
+    raw = os.environ.get("JUDGE_ALLOWED_ROOTS", "").strip()
+    if not raw:
+        raise ValueError("JUDGE_ALLOWED_ROOTS must explicitly allow local evidence paths")
+    roots = [Path(value).expanduser().resolve() for value in raw.split(os.pathsep) if value.strip()]
+    if not any(path == root or root in path.parents for root in roots):
+        raise ValueError(f"local evidence path is outside JUDGE_ALLOWED_ROOTS: {path}")
 
 
 def validate_judgment(judgment: QuestionJudgment, evidence: EvidenceCatalog) -> dict[str, Any]:

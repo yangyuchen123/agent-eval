@@ -51,8 +51,15 @@ app = create_app()
 
 
 def main() -> None:
+    import os
     import uvicorn
-    uvicorn.run("agentjudge.server:app", host="0.0.0.0", port=int(__import__("os").environ.get("JUDGE_PORT", "8787")))
+    # The Judge accepts local evidence references, so the safe default is
+    # loopback-only. Deployments that intentionally expose it must opt in.
+    uvicorn.run(
+        "agentjudge.server:app",
+        host=os.environ.get("JUDGE_HOST", "127.0.0.1"),
+        port=int(os.environ.get("JUDGE_PORT", "8787")),
+    )
 
 
 if __name__ == "__main__":

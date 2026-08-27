@@ -62,3 +62,26 @@ def test_multi_question_judge_propagates_allowed_scores_to_each_question():
     })
     skill.evaluate(Case("c", "task"), "output")
     assert client.requests[0].rubric_question["allowed_scores"] == [0.0, 0.5, 1.0]
+
+
+def test_multi_question_judge_records_rubric_and_model_provenance():
+    class ProvenanceJudge:
+        def evaluate(self, request):
+            return JudgeResponse(
+                score=1.0, confidence=1.0,
+                provenance={"model": "judge-model"}, status="scored")
+    skill = MultiQuestionJudgeSkill(ProvenanceJudge(), {
+        "rubric_id": "r", "version": "v1", "allowed_scores": [0, 1],
+        "questions": [{
+            "id": "q", "question": "q", "weight": 1,
+            "score_anchors": [
+                {"score": 0, "description": "no"},
+                {"score": 1, "description": "yes"},
+            ],
+        }],
+    })
+    result = skill.evaluate(Case("c", "task"), "out")
+    assert result.diagnostics["judge"] == {
+        "model": "judge-model", "rubric_id": "r", "rubric_version": "v1",
+        "evaluator_version": "agenteval.multi-question-judge.v1",
+    }

@@ -20,6 +20,7 @@ class FailureCode(StrEnum):
     REASONING_FAILURE = "R10 reasoning_failure"
     AGGREGATION_FAILURE = "R11 aggregation_failure"
     STOCHASTIC_INSTABILITY = "R12 stochastic_instability"
+    JUDGE_ENVIRONMENT_CONTAMINATION = "R13 judge_environment_contamination"
     UNCLASSIFIED = "unclassified"
 
     @property
@@ -44,6 +45,9 @@ def classify_failure(
     analysis. It never infers evidence interpretation errors from score alone.
     """
     failures: list[FailureCode] = []
+    provenance = judgment.get("provenance") or {}
+    if provenance.get("judge_environment_contamination") is True:
+        failures.append(FailureCode.JUDGE_ENVIRONMENT_CONTAMINATION)
     # Include the current judgment. The runner calls this before appending the
     # observation to ``repeated_judgments``; checking only prior observations
     # misses instability first introduced by the current repeat.

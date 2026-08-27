@@ -39,6 +39,81 @@ class EvidenceCatalog(EvidenceProvider):
         _attach_relations(records)
         return cls(records)
 
+    @classmethod
+    def from_harbor_trial(cls, trial_dir: str | Path) -> "EvidenceCatalog":
+        """Build runtime-neutral evidence from Harbor ATIF plus artifacts."""
+        root = Path(trial_dir)
+        records: list[EvidenceRecord] = []
+        trajectory_path = root / "agent" / "trajectory.json"
+        if trajectory_path.is_file():
+            payload = json.loads(trajectory_path.read_text(encoding="utf-8"))
+            agent = payload.get("agent") or {} if isinstance(payload, dict) else {}
+            agent_id = str(agent.get("name") or root.name)
+            for index, step in enumerate((payload.get("steps") or []) if isinstance(payload, dict) else [], 1):
+                if not isinstance(step, dict):
+                    continue
+                step_id = str(step.get("step_id") or index)
+                timestamp = step.get("timestamp")
+                source = str(step.get("source") or "unknown")
+                message_id = f"harbor:step:{step_id}:message"
+                if step.get("message") is not None:
+                    records.append(EvidenceRecord(
+                        evidence_id=message_id, source="agent/trajectory.json", line=index,
+                        event_type=f"{source}_message", kind="message",
+                        evidence_class="direct_runtime_event", claim_strength="direct",
+                        agent_id=agent_id, actor_agent_id=agent_id if source == "agent" else source,
+                        message_id=message_id, timestamp=timestamp,
+                        content={"role": source, "message": step.get("message")},
+                    ))
+                results = {
+                    str(row.get("source_call_id") or ""): row
+                    for row in ((step.get("observation") or {}).get("results") or [])
+                    if isinstance(row, dict)
+                }
+                for call_index, call in enumerate(step.get("tool_calls") or [], 1):
+                    if not isinstance(call, dict):
+                        continue
+                    call_id = str(call.get("tool_call_id") or f"step-{step_id}-call-{call_index}")
+                    call_eid = f"harbor:step:{step_id}:call:{call_id}"
+                    result_eid = f"harbor:step:{step_id}:result:{call_id}"
+                    result = results.get(call_id)
+                    records.append(EvidenceRecord(
+                        evidence_id=call_eid, source="agent/trajectory.json", line=index,
+                        event_type="tool_call", kind="tool_call",
+                        evidence_class="direct_runtime_event", claim_strength="direct",
+                        agent_id=agent_id, actor_agent_id=agent_id, tool_name=call.get("function_name"),
+                        tool_call_id=call_id, message_id=message_id, timestamp=timestamp,
+                        content={"arguments": call.get("arguments")},
+                        related_evidence=[result_eid] if result is not None else [],
+                    ))
+                    if result is not None:
+                        records.append(EvidenceRecord(
+                            evidence_id=result_eid, source="agent/trajectory.json", line=index,
+                            event_type="tool_result", kind="tool_result",
+                            evidence_class="direct_runtime_event", claim_strength="direct",
+                            agent_id=agent_id, actor_agent_id="environment", target_agent_id=agent_id,
+                            tool_name=call.get("function_name"), tool_call_id=call_id,
+                            message_id=message_id, timestamp=timestamp,
+                            content={"result": result.get("content")},
+                            related_evidence=[call_eid],
+                        ))
+        artifacts_root = root / "artifacts"
+        if artifacts_root.is_dir():
+            for path in sorted(p for p in artifacts_root.rglob("*") if p.is_file() and p.name != "manifest.json"):
+                rel = path.relative_to(artifacts_root).as_posix()
+                try:
+                    content = path.read_text(encoding="utf-8", errors="replace")
+                except OSError:
+                    continue
+                records.append(EvidenceRecord(
+                    evidence_id=f"harbor:artifact:{rel}", source="artifacts",
+                    event_type="artifact_file", kind="artifact",
+                    evidence_class="artifact_observation", claim_strength="direct",
+                    file_path=rel, content={"text": content},
+                ))
+        _attach_relations(records)
+        return cls(records)
+
     def _log(self, operation: str, **payload: Any) -> None:
         self._query_log.append({"operation": operation, **payload})
 

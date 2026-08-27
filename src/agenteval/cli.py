@@ -27,7 +27,7 @@ from typing import Any
 
 from . import score as score_mod
 from .backends import LLMBackend
-from .adapters import (AgentOctagonAdapter, AgentOctagonRuntimeClient,
+from .adapters import (AgentOctagonAdapter, AgentOctagonRuntimeClient, HarborAdapter,
                         score_octagon_samples)
 from .analysis import (judge_rule_agreement, migration_report,
                        render_diagnostics, render_migration,
@@ -37,6 +37,9 @@ from .preferences import PreferenceStore
 from .rubric_planner import RubricPlanner
 from .planner import Router
 from .protocols import Case
+from .judge import HttpJudgeClient
+from .rubrics import Rubric
+from .runtime_judge import score_runtime_samples
 from .report import build_report, evidence_tree_markdown, write_report_artifacts
 from .runner import RunConfig, run_eval, write_evidence
 from .skills.registry import SkillRegistry
@@ -264,6 +267,26 @@ def cmd_octagon_score(args: argparse.Namespace) -> int:
     return 1 if report.failures else 0
 
 
+
+def cmd_harbor_score(args: argparse.Namespace) -> int:
+    """Score persisted Harbor trials through the independent Judge service."""
+    samples = HarborAdapter(args.trial_root, include_failed=args.include_failed).iter_samples()
+    if not samples:
+        raise SystemExit("no matching Harbor trials found")
+    rubric = Rubric.from_dict(json.loads(Path(args.rubric).read_text(encoding="utf-8")))
+    client = HttpJudgeClient(
+        args.judge_service_url, endpoint=args.judge_endpoint,
+        api_key=args.judge_api_key, timeout=args.judge_timeout,
+    )
+    report, artifacts = score_runtime_samples(
+        samples, client=client, rubric=rubric, run_root=args.run_root,
+        model_id=args.model_id, plan_root=args.plan_root,
+    )
+    print(f"[agenteval] harbor samples={len(samples)}, scored={len(report.evidence)}, failures={len(report.failures)}")
+    for kind, path in artifacts.items():
+        print(f"  [{kind}] {path}")
+    return 1 if report.failures else 0
+
 def _planner_backend(args: argparse.Namespace) -> LLMBackend:
     if not args.base_url or not args.model:
         raise SystemExit("--base-url and --model are required")
@@ -485,6 +508,22 @@ def main(argv: list[str] | None = None) -> int:
     p_octagon.add_argument("--model-id", default="agent-octagon")
     add_octagon_judge_args(p_octagon)
     p_octagon.set_defaults(func=cmd_octagon_score)
+
+    p_harbor = sub.add_parser(
+        "harbor-score",
+        help="score persisted Harbor trials through the independent Agent Judge",
+    )
+    p_harbor.add_argument("--trial-root", required=True, help="Harbor trial, job, or jobs root")
+    p_harbor.add_argument("--rubric", required=True, help="versioned structured rubric JSON")
+    p_harbor.add_argument("--judge-service-url", default="http://127.0.0.1:8787")
+    p_harbor.add_argument("--judge-endpoint", default="/v1/judge/evaluate")
+    p_harbor.add_argument("--judge-api-key", default=None)
+    p_harbor.add_argument("--judge-timeout", type=float, default=180.0)
+    p_harbor.add_argument("--include-failed", action="store_true")
+    p_harbor.add_argument("--run-root", default="run/harbor-judge")
+    p_harbor.add_argument("--plan-root", default=None)
+    p_harbor.add_argument("--model-id", default="independent-agent-judge")
+    p_harbor.set_defaults(func=cmd_harbor_score)
 
     def add_planner_args(parser):
         parser.add_argument("--base-url", required=True)

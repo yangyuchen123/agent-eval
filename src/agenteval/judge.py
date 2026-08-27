@@ -180,7 +180,7 @@ class JudgeClientSkill(Skill):
     def evaluate(self, case: Case, output: str) -> SkillResult:
         deterministic = case.context.get("deterministic_result")
         request = JudgeRequest(
-            case=case,
+            case=_public_case(case),
             rubric=self.rubric,
             rubric_question=dict(case.context.get("rubric_question") or {}),
             agent_output=output,
@@ -248,7 +248,7 @@ class MultiQuestionJudgeSkill(Skill):
         statuses: list[str] = []
         for question in questions:
             request = JudgeRequest(
-                case=case,
+                case=_public_case(case),
                 rubric=self.rubric,
                 rubric_question=dict(question),
                 agent_output=output,
@@ -287,13 +287,33 @@ class MultiQuestionJudgeSkill(Skill):
             status = "incomplete_evidence"
         else:
             status = "ok"
+        rubric_data = self.rubric.to_dict() if isinstance(self.rubric, Rubric) else (dict(self.rubric) if isinstance(self.rubric, Mapping) else {})
+        judge_models = [str(item.get("model")) for item in provenance if item.get("model")]
         return SkillResult(
             skill_id=self.skill_id, status=status, score=score,
             subscores={str(j["question"].get("id")): j["response"].get("score") for j in judgments},
             reasons={str(j["question"].get("id")): _question_reason(j["response"]) for j in judgments},
-            evidence={"question_judgments": judgments, "evidence_refs": list(dict.fromkeys(all_refs))},
-            diagnostics={"judge_provenance": provenance, "question_count": len(questions), "question_statuses": statuses},
+            evidence={"question_judgments": judgments, "evidence_refs": list(dict.fromkeys(all_refs)),
+                      "rubric": rubric_data},
+            diagnostics={
+                "judge_provenance": provenance, "question_count": len(questions),
+                "question_statuses": statuses,
+                "judge": {
+                    "model": judge_models[0] if judge_models else None,
+                    "rubric_id": rubric_data.get("rubric_id"),
+                    "rubric_version": rubric_data.get("version"),
+                    "evaluator_version": self.definition_version,
+                },
+            },
         )
+
+
+def _public_case(case: Case) -> Case:
+    """Remove evaluator-private runtime payloads before crossing Judge boundary."""
+    return Case(
+        case_id=case.case_id, task=case.task, expected=dict(case.expected),
+        context={}, metadata=dict(case.metadata),
+    )
 
 
 def _rubric_questions(rubric: Rubric | Mapping[str, Any] | str) -> list[dict[str, Any]]:

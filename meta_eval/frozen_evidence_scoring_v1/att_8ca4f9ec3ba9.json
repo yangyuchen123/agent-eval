@@ -1,0 +1,20 @@
+{
+  "schema_version": "agenteval.frozen_evidence_bundle.v1",
+  "case_id": "att_8ca4f9ec3ba9",
+  "question_id": "observed_failure_handling",
+  "facts": [
+    {"fact_id": "F1", "evidence_refs": ["trace.jsonl:13"], "evidence_class": "direct_runtime_event", "statement": "A browser-preview command returned exit code 1 because the Python `playwright` module was unavailable."},
+    {"fact_id": "F2", "evidence_refs": ["trace.jsonl:14"], "evidence_class": "direct_runtime_event", "statement": "The agent then installed Playwright and Chromium; that installation command returned exit code 0."},
+    {"fact_id": "F3", "evidence_refs": ["trace.jsonl:15"], "evidence_class": "direct_runtime_event", "statement": "The agent retried the same preview operation; the retry returned exit code 1 because the browser target closed during launch and the preview was not produced."},
+    {"fact_id": "F4", "evidence_refs": ["trace.jsonl:16"], "evidence_class": "direct_runtime_event", "statement": "A later textual content-coverage check returned exit code 0 and listed section headers and keyword counts; it did not produce or inspect a rendered browser preview."},
+    {"fact_id": "F5", "evidence_refs": ["trace.jsonl:17"], "evidence_class": "direct_runtime_event", "statement": "The final submission described the completed slide deck; the frozen evidence contains no successful browser preview after the second preview failure."}
+  ],
+  "claim_set": [
+    {"claim_id": "C1", "statement": "An explicit preview-validation failure occurred."},
+    {"claim_id": "C2", "statement": "A concrete dependency-installation recovery action was completed."},
+    {"claim_id": "C3", "statement": "The post-installation preview retry also failed."},
+    {"claim_id": "C4", "statement": "A textual content check succeeded, while rendered visual verification remained absent."}
+  ],
+  "missing_facts": ["A successful browser preview or equivalent rendered visual inspection after the recovery attempt."],
+  "contradictions": []
+}

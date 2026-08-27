@@ -705,10 +705,18 @@ def score_octagon_samples(
                 "parameters": {},
             })
         if judge_skill is not None:
+            # In judge-only mode the LLM judge is the primary evaluator, so it
+            # must be marked as the core skill.  Plan validation requires at
+            # least one core skill; keeping it diagnostic here makes the
+            # documented --judge-only mode fail before the first LLM call.
             selected.append({
                 "skill_id": judge_skill.skill_id,
-                "role": "diagnostic",
-                "reason": "judge the case with deterministic scorer evidence and the configured rubric",
+                "role": "core" if judge_only else "diagnostic",
+                "reason": (
+                    "judge the case as the primary evaluator with the configured rubric"
+                    if judge_only else
+                    "judge the case with deterministic scorer evidence and the configured rubric"
+                ),
                 "parameters": {},
             })
         return Plan(

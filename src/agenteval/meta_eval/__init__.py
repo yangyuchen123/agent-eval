@@ -22,7 +22,7 @@ from .process_rubric import (GENERIC_RUNTIME_PROCESS_QUESTIONS,
                              GENERIC_RUNTIME_PROCESS_RUBRIC_TWO_LEVEL,
                              GENERIC_RUNTIME_PROCESS_QUESTIONS_FIVE_LEVEL,
                              GENERIC_RUNTIME_PROCESS_RUBRIC_FIVE_LEVEL,
-                             process_questions_by_id)
+                             build_resolution_rubric, process_questions_by_id)
 
 __all__ = [
     "GoldJudgment", "load_gold", "load_gold_dir", "write_gold", "FailureCode", "classify_failure",
@@ -35,7 +35,7 @@ __all__ = [
     "GENERIC_RUNTIME_PROCESS_QUESTIONS_V4", "GENERIC_RUNTIME_PROCESS_RUBRIC_V4",
     "GENERIC_RUNTIME_PROCESS_QUESTIONS_TWO_LEVEL", "GENERIC_RUNTIME_PROCESS_RUBRIC_TWO_LEVEL",
     "GENERIC_RUNTIME_PROCESS_QUESTIONS_FIVE_LEVEL", "GENERIC_RUNTIME_PROCESS_RUBRIC_FIVE_LEVEL",
-    "process_questions_by_id",
+    "build_resolution_rubric", "process_questions_by_id",
     "FailureAttemptScan", "FailureSignal", "FailureSignalKind", "FailureValidationStratum",
     "candidate_strata", "scan_failure_signals", "select_balanced_scans",
 ]

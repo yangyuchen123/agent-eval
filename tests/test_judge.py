@@ -79,3 +79,24 @@ def test_http_judge_client_uses_versioned_request(monkeypatch):
     assert seen["url"] == "http://judge/v1/judge/evaluate"
     assert seen["auth"] == "Bearer test-key"
     assert b"agenteval.judge_request.v1" in seen["body"]
+
+
+def test_judge_client_does_not_send_private_case_context():
+    from agenteval import Case, JudgeClientSkill, JudgeResponse
+
+    class CaptureClient:
+        request = None
+        def evaluate(self, request):
+            self.request = request
+            return JudgeResponse(score=1.0)
+
+    client = CaptureClient()
+    skill = JudgeClientSkill(client, "rubric")
+    case = Case("c", "task", context={
+        "trace_ref": {"scheme": "harbor", "trial_dir": "/tmp/t"},
+        "artifact_ref": {"scheme": "harbor", "artifacts_root": "/tmp/a"},
+        "secret": "must-not-cross-boundary",
+    })
+    skill.evaluate(case, "out")
+    assert client.request.case.context == {}
+    assert client.request.trace_ref["scheme"] == "harbor"

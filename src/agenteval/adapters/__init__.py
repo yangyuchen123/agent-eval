@@ -9,6 +9,7 @@ from .contracts import (
     ToolCall,
 )
 from .json import JsonRuntimeAdapter, sample_from_dict
+from .harbor import HarborAdapter
 from .octagon import AgentOctagonAdapter
 from .octagon_runtime import AgentOctagonRuntimeClient, AgentOctagonRuntimeError, OctagonRun
 from .runtime_evidence import EvidenceHit, RuntimeEvidenceIndex
@@ -29,6 +30,7 @@ __all__ = [
     "ArtifactRef",
     "ConversationTurn",
     "EvalSample",
+    "HarborAdapter",
     "JsonRuntimeAdapter",
     "RuntimeAdapter",
     "ToolCall",
