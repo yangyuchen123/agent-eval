@@ -85,3 +85,44 @@ def test_multi_question_judge_records_rubric_and_model_provenance():
         "model": "judge-model", "rubric_id": "r", "rubric_version": "v1",
         "evaluator_version": "agenteval.multi-question-judge.v1",
     }
+
+
+def test_explicit_artifact_criterion_does_not_receive_trace_ref():
+    class Client(FakeMultiJudge):
+        def evaluate(self, request):
+            self.requests.append(request)
+            return JudgeResponse(score=1.0, evidence_refs=["artifact:deck"] )
+    client = Client()
+    skill = MultiQuestionJudgeSkill(client, {
+        "questions": [{
+            "id": "title_font", "question": "font", "weight": 1,
+            "evidence_required": ["artifact"],
+        }]
+    })
+    result = skill.evaluate(Case("c", "task", context={
+        "trace_ref": {"path": "trace.jsonl"},
+        "artifact_ref": {"path": "deck.pptx"},
+    }), "output")
+    assert client.requests[0].trace_ref is None
+    assert client.requests[0].artifact_ref == {"path": "deck.pptx"}
+    assert result.diagnostics["runtrace"]["criteria_using_runtrace"] == 0
+    assert result.diagnostics["runtrace"]["analysis_calls"] == 0
+
+
+def test_explicit_runtime_criterion_receives_trace_ref():
+    class Client(FakeMultiJudge):
+        def evaluate(self, request):
+            self.requests.append(request)
+            return JudgeResponse(score=1.0, evidence_refs=["trace:mcp"] )
+    client = Client()
+    skill = MultiQuestionJudgeSkill(client, {
+        "questions": [{
+            "id": "mcp_call", "question": "called tool", "weight": 1,
+            "requires_runtime_evidence": True,
+        }]
+    })
+    result = skill.evaluate(Case("c", "task", context={
+        "trace_ref": {"path": "trace.jsonl"},
+    }), "output")
+    assert client.requests[0].trace_ref == {"path": "trace.jsonl"}
+    assert result.diagnostics["runtrace"]["criteria_using_runtrace"] == 1

@@ -439,3 +439,28 @@ def test_failure_taxonomy_can_record_judge_environment_contamination_explicitly(
         {"provenance": {"judge_environment_contamination": True}},
     )
     assert FailureCode.JUDGE_ENVIRONMENT_CONTAMINATION in failures
+
+
+def test_prepare_judge_calibration_joins_human_gold_only(tmp_path):
+    import json
+    from tools_prepare_judge_calibration import build_bundle
+
+    gold_dir = tmp_path / "gold"
+    gold_dir.mkdir()
+    (gold_dir / "c1.json").write_text(json.dumps({
+        "case_id": "c1", "question_id": "q1", "expected_score": 0.5,
+        "expected_status": "partially_supported", "required_evidence_refs": ["trace.jsonl:1"]
+    }))
+    judgments = tmp_path / "judgments.jsonl"
+    judgments.write_text(json.dumps({
+        "case_id": "c1", "question_id": "q1", "judge_mode": "agentic_evidence",
+        "perturbation": "none", "score": 0.5, "status": "partially_supported"
+    }) + "\n")
+    result = build_bundle(
+        gold_dir=gold_dir, judgments_path=judgments,
+        output=tmp_path / "out", question_id="q1",
+        judge_mode="agentic_evidence", perturbation="none", policy_id=None,
+    )
+    assert result["gold_policy"] == "human_only"
+    assert result["calibration"]["score_exact_rate"] == 1.0
+    assert (tmp_path / "out" / "calibration.jsonl").is_file()

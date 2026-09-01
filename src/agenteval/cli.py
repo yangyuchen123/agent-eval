@@ -45,6 +45,13 @@ from .runner import RunConfig, run_eval, write_evidence
 from .skills.registry import SkillRegistry
 
 
+def _write_cache_stats(run_root: str | Path, report: Any) -> Path:
+    target = Path(run_root) / "cache_stats.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps({"schema_version":"agenteval.cache_stats.v1", **dict(report.cache_stats)}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return target
+
+
 def _load_case_package(name: str) -> Any:
     module = importlib.import_module(name)
     for fn in ("build_registry", "build_router"):
@@ -117,6 +124,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
     report = run_eval(config, cases, outputs,
                       on_case=lambda cid: print(f"  ✓ {cid}"))
     evidence_root = write_evidence(run_root, report)
+    _write_cache_stats(run_root, report)
     print(f"[agenteval] scored {len(report.evidence)}/{len(cases)} cases, "
           f"failures={len(report.failures)}, skill_cache_hits={report.cache_stats.get('skill_hits', 0)}")
     for failure in report.failures:

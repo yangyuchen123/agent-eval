@@ -247,6 +247,44 @@ def evaluate_one(config: RunConfig, case: Case, output: str) -> tuple[CaseEviden
     return evidence, hits
 
 
+def _routing_metrics(evidence: CaseEvidence) -> dict[str, int]:
+    """Collect lightweight routing telemetry from existing evidence nodes."""
+    criteria = 0
+    runtrace_criteria = 0
+    trace_calls = 0
+    skills = len(evidence.skill_results)
+    source_names: set[str] = set()
+    judge_calls = 0
+    for result in evidence.skill_results.values():
+        diagnostics = result.diagnostics or {}
+        criteria += int(diagnostics.get("question_count", 0) or 0)
+        runtime = diagnostics.get("runtrace")
+        if isinstance(runtime, Mapping):
+            runtrace_criteria += int(runtime.get("criteria_using_runtrace", 0) or 0)
+            trace_calls += int(runtime.get("analysis_calls", 0) or 0)
+            if runtime.get("accessed"):
+                source_names.add("runtrace")
+        routing = result.evidence.get("routing") if isinstance(result.evidence, Mapping) else None
+        if isinstance(routing, Mapping):
+            for item in (routing.get("criteria") or {}).values():
+                if isinstance(item, Mapping):
+                    for source in item.get("required", ()):
+                        source_names.add(str(source))
+        judge = diagnostics.get("judge")
+        if isinstance(judge, Mapping) and judge.get("model"):
+            judge_calls += 1
+    if criteria == 0:
+        criteria = len(evidence.skill_results)
+    return {
+        "total_criteria": criteria,
+        "criteria_using_runtrace": runtrace_criteria,
+        "runtrace_analysis_calls": trace_calls,
+        "skills_invoked": skills,
+        "evidence_sources_used": len(source_names),
+        "judge_calls": judge_calls,
+    }
+
+
 def run_eval(
     config: RunConfig,
     cases: Iterable[Case],
@@ -268,6 +306,8 @@ def run_eval(
             report.failures.append({"case_id": case.case_id, "error": repr(exc)})
             continue
         report.evidence[case.case_id] = evidence
+        for key, value in _routing_metrics(evidence).items():
+            report.cache_stats[key] = report.cache_stats.get(key, 0) + value
         report.cache_stats.setdefault("plan_hits", 0)
         report.cache_stats["skill_hits"] = report.cache_stats.get("skill_hits", 0) + hits
         history.extend(record_from_evidence(

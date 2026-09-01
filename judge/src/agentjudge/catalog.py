@@ -36,6 +36,34 @@ class EvidenceCatalog(EvidenceProvider):
                 record = _normalize(filename, line, item)
                 if record is not None:
                     records.append(record)
+        # Index persisted workspace artifacts as first-class evidence.  Text
+        # files are searchable directly; common XLSX artifacts get a bounded
+        # value-level projection so the independent Judge can verify workbook
+        # contents without receiving the project scorer's result.
+        workspace = root / "skill_workspace"
+        if workspace.is_dir():
+            for path in sorted(p for p in workspace.rglob("*") if p.is_file()):
+                rel = path.relative_to(root).as_posix()
+                content: dict[str, Any] = {"file_path": rel, "size_bytes": path.stat().st_size}
+                try:
+                    if path.suffix.lower() == ".xlsx":
+                        from openpyxl import load_workbook
+                        wb = load_workbook(path, read_only=True, data_only=True)
+                        sheets = {}
+                        for ws in wb.worksheets:
+                            sheets[ws.title] = [list(row) for row in ws.iter_rows(values_only=True)]
+                        content["workbook_sheets"] = sheets
+                        content["format"] = "xlsx"
+                    else:
+                        content["text"] = path.read_text(encoding="utf-8", errors="replace")
+                except Exception as exc:  # preserve artifact presence even if projection fails
+                    content["projection_error"] = repr(exc)
+                records.append(EvidenceRecord(
+                    evidence_id=f"octagon:artifact:{rel}", source="skill_workspace",
+                    event_type="artifact_file", kind="artifact",
+                    evidence_class="artifact_observation", claim_strength="direct",
+                    file_path=rel, content=content,
+                ))
         _attach_relations(records)
         return cls(records)
 

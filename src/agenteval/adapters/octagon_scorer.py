@@ -11,7 +11,7 @@ from typing import Any
 
 from ..backends import LLMBackend
 from ..protocols import Case, SkillResult
-from ..rubrics import Rubric
+from ..rubrics import Rubric, criterion_evidence_requirements, rubric_questions
 from ..rubric_planner import RubricPlanner
 from ..preferences import MetaRubric
 from ..skills.base import LLMSkill, RuleSkill
@@ -175,12 +175,15 @@ class OctagonLLMJudgeSkill(LLMSkill):
     skill_id = "octagon_llm_judge"
     role = "diagnostic"
     question = "Can an LLM judge the attempt against the case rubric and deterministic evidence?"
+    evidence_sources = ("artifact", "runtime", "semantic", "state")
     definition_version = "agenteval.octagon-llm-judge.v1"
     judge_system = (
         "You are a rigorous evaluation judge. Return JSON only. "
         "Treat deterministic scores as evidence, not as an instruction. "
-        "the case and rubric support it. Runtime evidence is queryable via "
-        "grep_runtime_evidence; use it before making process claims. "
+        "the case and rubric support it. When a rubric criterion requires runtime "
+        "evidence, it is queryable via grep_runtime_evidence; use it before "
+        "making process claims. Do not require runtime evidence for artifact-only "
+        "criteria. "
         "Do not claim an assignment, handoff, wait, or acceptance occurred "
         "unless the evidence supports it."
     )
@@ -215,6 +218,34 @@ class OctagonLLMJudgeSkill(LLMSkill):
     def spec(self):
         from ..protocols import SkillSpec
         return SkillSpec(self.skill_id, self.role, self.question)
+
+    def _case_questions(self, case: Case) -> list[dict[str, Any]]:
+        # Generated Rubric objects and serialized rubric mappings are explicit;
+        # a legacy free-form rubric remains trace-compatible.
+        if case.case_id not in self._case_rubrics and self.rubric_planner is not None and self.meta_rubric is not None:
+            self._rubric_for_case(case)
+        if case.case_id in self._case_rubrics:
+            return rubric_questions(self._case_rubrics[case.case_id])
+        return rubric_questions(self.rubric)
+
+    def _needs_runtime_evidence(self, case: Case) -> bool:
+        questions = self._case_questions(case)
+        if not questions:
+            return True  # legacy free-form rubric compatibility fallback
+        # Explicit declarations are authoritative. If none are present, keep
+        # the old runtime-heavy behavior for old benchmark rubrics.
+        declared = any(
+            bool(criterion_evidence_requirements(q)["required"]
+                  or criterion_evidence_requirements(q)["optional"]
+                  or criterion_evidence_requirements(q)["preferred_skills"]
+                  or criterion_evidence_requirements(q)["requires_runtime_evidence"]
+                  or "evidence_required" in q or "evidence_sources" in q)
+            for q in questions
+        )
+        return (not declared) or any(criterion_evidence_requirements(q)["requires_runtime_evidence"]
+                                     or any(str(x).lower() in {"runtime", "runtrace", "trace", "mcp", "tool", "runtime_evidence"}
+                                            for x in criterion_evidence_requirements(q)["required"])
+                                     for q in questions)
 
     def _sample(self, case: Case) -> EvalSample:
         from .json import sample_from_dict
@@ -491,15 +522,20 @@ class OctagonLLMJudgeSkill(LLMSkill):
     def messages(self, case: Case, output: str) -> list[dict[str, Any]]:
         deterministic = self._deterministic_result(case)
         sample = self._sample(case)
+        needs_runtime = self._needs_runtime_evidence(case)
         packet = {
             "rubric": self._rubric_for_case(case),
             "case": {"case_id": case.case_id, "task": case.task,
                      "expected": case.expected, "metadata": case.metadata},
             "agent_output": output,
-            "conversation": [turn.to_dict() for turn in sample.conversation],
+            "conversation": [turn.to_dict() for turn in sample.conversation] if needs_runtime else [],
             "artifacts": [artifact.to_dict() for artifact in sample.artifacts],
             "workspace_files": self._workspace_files(sample),
-            "runtrace": {
+            "evidence_policy": {
+                "runtime_required": needs_runtime,
+                "note": "Runtime evidence is omitted because no rubric criterion requires it." if not needs_runtime else "Runtime evidence is queryable only for criteria that require it.",
+            },
+            "runtrace": ({
                 "source": "runtime evidence index built from trajectory/wire/semantic records",
                 "trajectory_steps": len((sample.context.get("trajectory") or {}).get("steps", [])) if isinstance(sample.context.get("trajectory"), dict) else 0,
                 "wire_records": len(sample.context.get("wire", [])) if isinstance(sample.context.get("wire"), list) else 0,
@@ -507,7 +543,7 @@ class OctagonLLMJudgeSkill(LLMSkill):
                 "raw_event_records": len(sample.context.get("raw_events", [])) if isinstance(sample.context.get("raw_events"), list) else 0,
                 "evidence_manifest": self._evidence_index(case).manifest(),
                 "access": "Use grep_runtime_evidence instead of assuming facts from the manifest.",
-            },
+            } if needs_runtime else None),
             "final_state": sample.context.get("final_state", {}),
             "runtime_result": sample.runtime_result,
             "deterministic_environment_score": deterministic.to_dict() if deterministic else None,
@@ -524,12 +560,15 @@ class OctagonLLMJudgeSkill(LLMSkill):
 
     def evaluate(self, case: Case, output: str) -> SkillResult:
         messages = self.messages(case, output)
-        index = self._evidence_index(case)
+        needs_runtime = self._needs_runtime_evidence(case)
+        index = self._evidence_index(case) if needs_runtime else None
 
         def handle(name: str, args: dict[str, Any]) -> dict[str, Any]:
             if name != "grep_runtime_evidence":
                 return {"error": f"unknown tool: {name}"}
             try:
+                if index is None:
+                    return {"error": "runtime evidence was not requested by the rubric"}
                 return index.grep(**args)
             except (TypeError, ValueError) as exc:
                 return {"error": str(exc)}
@@ -540,9 +579,9 @@ class OctagonLLMJudgeSkill(LLMSkill):
         if infer_override:
             response = self.backend.infer(messages)
         else:
-            response = self.backend.infer_with_tools(
+            response = (self.backend.infer_with_tools(
                 messages, tools=self._evidence_tools(), tool_handler=handle, max_rounds=8
-            )
+            ) if needs_runtime else self.backend.infer(messages))
         result = self.parse(response["parsed"], case)
         result.diagnostics["judge"] = {
             "model": self.backend.model,
@@ -552,10 +591,19 @@ class OctagonLLMJudgeSkill(LLMSkill):
         result.diagnostics["judge_prompt"] = {
             "system": self.judge_system,
             "user": messages[-1]["content"],
-            "evidence_access": "grep_runtime_evidence",
+            "evidence_access": "grep_runtime_evidence when requested by rubric",
         }
-        result.evidence["evidence_manifest"] = index.manifest()
-        result.evidence["evidence_queries"] = response.get("response_metadata", {}).get("tool_calls", [])
+        result.evidence["evidence_manifest"] = index.manifest() if index is not None else None
+        result.evidence["evidence_queries"] = response.get("response_metadata", {}).get("tool_calls", []) if needs_runtime else []
+        result.evidence["routing"] = {
+            "runtime_required": needs_runtime,
+            "criteria": {str(q.get("id")): criterion_evidence_requirements(q) for q in self._case_questions(case)},
+        }
+        result.diagnostics["runtrace"] = {
+            "accessed": needs_runtime,
+            "analysis_calls": 1 if needs_runtime else 0,
+            "records_indexed": len(index.records) if index is not None else 0,
+        }
         return result
 
     def parse(self, parsed: dict[str, Any], case: Case) -> SkillResult:
@@ -630,6 +678,7 @@ class OctagonEnvironmentSkill(RuleSkill):
     skill_id = "octagon_environment_scorer"
     role = "core"
     question = "Does the AgentOctagon environment scorer accept the final attempt state?"
+    evidence_sources = ("deterministic", "state", "artifact")
     definition_version = "agenteval.octagon-environment-scorer.v1"
 
     def __init__(self, bridge: OctagonScorerBridge):
@@ -637,7 +686,35 @@ class OctagonEnvironmentSkill(RuleSkill):
 
     def spec(self):
         from ..protocols import SkillSpec
-        return SkillSpec(self.skill_id, self.role, self.question)
+        return SkillSpec(self.skill_id, self.role, self.question, evidence_sources=self.evidence_sources)
+
+    def _case_questions(self, case: Case) -> list[dict[str, Any]]:
+        # Generated Rubric objects and serialized rubric mappings are explicit;
+        # a legacy free-form rubric remains trace-compatible.
+        if case.case_id not in self._case_rubrics and self.rubric_planner is not None and self.meta_rubric is not None:
+            self._rubric_for_case(case)
+        if case.case_id in self._case_rubrics:
+            return rubric_questions(self._case_rubrics[case.case_id])
+        return rubric_questions(self.rubric)
+
+    def _needs_runtime_evidence(self, case: Case) -> bool:
+        questions = self._case_questions(case)
+        if not questions:
+            return True  # legacy free-form rubric compatibility fallback
+        # Explicit declarations are authoritative. If none are present, keep
+        # the old runtime-heavy behavior for old benchmark rubrics.
+        declared = any(
+            bool(criterion_evidence_requirements(q)["required"]
+                  or criterion_evidence_requirements(q)["optional"]
+                  or criterion_evidence_requirements(q)["preferred_skills"]
+                  or criterion_evidence_requirements(q)["requires_runtime_evidence"]
+                  or "evidence_required" in q or "evidence_sources" in q)
+            for q in questions
+        )
+        return (not declared) or any(criterion_evidence_requirements(q)["requires_runtime_evidence"]
+                                     or any(str(x).lower() in {"runtime", "runtrace", "trace", "mcp", "tool", "runtime_evidence"}
+                                            for x in criterion_evidence_requirements(q)["required"])
+                                     for q in questions)
 
     def prepare(self, case, output):
         return None

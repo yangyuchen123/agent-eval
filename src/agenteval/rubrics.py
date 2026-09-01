@@ -82,6 +82,14 @@ class RubricQuestion:
     # Generated-rubric provenance: which meta-principles justify this question?
     source_principles: tuple[str, ...] = ()
     case_adaptation: str = ""
+    # Optional evidence-routing metadata. Empty values preserve legacy
+    # rubric behavior; explicit declarations let the evaluator acquire only
+    # the evidence needed by this criterion. Values are plain source/skill
+    # ids (no new enum or DSL).
+    evidence_required: tuple[str, ...] = ()
+    evidence_optional: tuple[str, ...] = ()
+    preferred_skills: tuple[str, ...] = ()
+    requires_runtime_evidence: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         d = {
@@ -99,6 +107,14 @@ class RubricQuestion:
             d["source_principles"] = list(self.source_principles)
         if self.case_adaptation:
             d["case_adaptation"] = self.case_adaptation
+        if self.evidence_required:
+            d["evidence_required"] = list(self.evidence_required)
+        if self.evidence_optional:
+            d["evidence_optional"] = list(self.evidence_optional)
+        if self.preferred_skills:
+            d["preferred_skills"] = list(self.preferred_skills)
+        if self.requires_runtime_evidence:
+            d["requires_runtime_evidence"] = True
         return d
 
     @classmethod
@@ -121,7 +137,49 @@ class RubricQuestion:
             capabilities=tuple(str(x) for x in (data.get("capabilities") or ())),
             source_principles=tuple(str(x) for x in (data.get("source_principles") or ())),
             case_adaptation=str(data.get("case_adaptation") or ""),
+            evidence_required=tuple(str(x) for x in (data.get("evidence_required") or data.get("evidence_sources") or ())),
+            evidence_optional=tuple(str(x) for x in (data.get("evidence_optional") or ())),
+            preferred_skills=tuple(str(x) for x in (data.get("preferred_skills") or ())),
+            requires_runtime_evidence=bool(data.get("requires_runtime_evidence", data.get("runtime_required", False))),
         )
+
+
+def rubric_questions(value: Any) -> list[dict[str, Any]]:
+    """Return rubric questions as dictionaries for routing/orchestration.
+
+    This accepts the canonical Rubric object and legacy mapping/JSON inputs.
+    It intentionally does not infer evidence requirements from question prose:
+    undeclared requirements retain the old compatibility behavior.
+    """
+    if isinstance(value, Rubric):
+        allowed = list(value.allowed_scores)
+        return [{**q.to_dict(), "allowed_scores": allowed} for q in value.questions]
+    if isinstance(value, dict):
+        allowed = [float(x) for x in (value.get("allowed_scores") or [])]
+        return [{**dict(q), **({"allowed_scores": allowed} if allowed else {})}
+                for q in (value.get("questions") or ()) if isinstance(q, dict)]
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return []
+        return rubric_questions(parsed)
+    return []
+
+
+def criterion_evidence_requirements(question: dict[str, Any]) -> dict[str, Any]:
+    """Normalize the small, backwards-compatible routing metadata surface."""
+    required = tuple(str(x) for x in (question.get("evidence_required")
+                                      or question.get("evidence_sources") or ()))
+    optional = tuple(str(x) for x in (question.get("evidence_optional") or ()))
+    preferred = tuple(str(x) for x in (question.get("preferred_skills") or ()))
+    runtime = bool(question.get("requires_runtime_evidence",
+                                question.get("runtime_required", False)))
+    if runtime and not any(x.lower() in {"runtime", "runtrace", "trace", "runtime_evidence"}
+                           for x in required):
+        required = (*required, "runtime")
+    return {"required": required, "optional": optional, "preferred_skills": preferred,
+            "requires_runtime_evidence": runtime}
 
 
 @dataclass(frozen=True)

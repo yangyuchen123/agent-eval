@@ -85,6 +85,7 @@ class SkillSpec:
     question: str
     core_for: tuple[str, ...] = ()       # optional task-family hints
     diagnostic_for: tuple[str, ...] = ()
+    evidence_sources: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -96,6 +97,8 @@ class SkillSpec:
             d["core_for"] = list(self.core_for)
         if self.diagnostic_for:
             d["diagnostic_for"] = list(self.diagnostic_for)
+        if self.evidence_sources:
+            d["evidence_sources"] = list(self.evidence_sources)
         return d
 
 

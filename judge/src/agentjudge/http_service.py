@@ -66,7 +66,11 @@ def default_evidence_factory(request: JudgeRequest) -> EvidenceCatalog:
     use another runtime can inject ``evidence_factory`` without changing the
     Judge contract.
     """
-    ref = request.trace_ref
+    # Artifact-only rubric questions intentionally omit trace_ref.  Harbor's
+    # artifact_ref carries the same trial_dir and must still build the catalog;
+    # otherwise supported artifact claims cannot cite resolvable evidence and
+    # the whole case is incorrectly marked incomplete_evidence.
+    ref = request.trace_ref or request.artifact_ref
     if isinstance(ref, dict):
         scheme = str(ref.get("scheme") or "")
         if scheme == "harbor":

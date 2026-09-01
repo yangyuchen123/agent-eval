@@ -1,0 +1,34 @@
+{
+  "schema_version": "agent_eval.research_archive.v1",
+  "archive_id": "judge-research-2026-08-31",
+  "created_at": "2026-08-31",
+  "purpose": "structured_archive_of_external_judge_method_design_and_factorial_replay",
+  "canonical_root": "archive/2026-08-31/judge-research",
+  "moved_items": [
+    "docs/EXTERNAL_METHODS_COMPATIBILITY_AND_INSERTION_2026-08-31.md",
+    "docs/FACTORIAL_ERROR_DECOMPOSITION_PROTOCOL_2026-08-31.md",
+    "run/meta_eval/factorial-error-decomposition-v1/"
+  ],
+  "compatibility_pointers": [
+    "docs/EXTERNAL_METHODS_COMPATIBILITY_AND_INSERTION_2026-08-31.md",
+    "docs/FACTORIAL_ERROR_DECOMPOSITION_PROTOCOL_2026-08-31.md",
+    "run/meta_eval/factorial-error-decomposition-v1/README.md"
+  ],
+  "original_source_data_roots": [
+    "run/meta_eval",
+    "meta_eval"
+  ],
+  "production_code_changed": false,
+  "experiment_status": "frozen_blocked_by_dataset_design",
+  "checks": {
+    "docs/EXTERNAL_METHODS_COMPATIBILITY_AND_INSERTION_2026-08-31.md": {
+      "exists": true,
+      "sha256": "f7755d048dbe16cdb086a6a94f0bdf9549d27e914de1e9d7f1b7666e937dcbc9"
+    },
+    "docs/FACTORIAL_ERROR_DECOMPOSITION_PROTOCOL_2026-08-31.md": {
+      "exists": true,
+      "sha256": "44f1746b968cbcaaa314a1508ea69f72f2b08afdb02006cabdb0d7e00fd466ef"
+    },
+    "factorial_experiment_file_count": 44
+  }
+}

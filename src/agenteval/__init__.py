@@ -21,10 +21,10 @@ from .meta_eval import (EvidenceSnapshot, FailureCode, GoldJudgment, JudgmentObs
 from .manifest import (EvaluationRun, build_manifest, evaluator_snapshot,
                        load_manifest, write_manifest)
 from .protocols import (Case, CaseEvidence, Plan, SkillResult, SkillSpec)
-from .rubrics import Rubric, RubricQuestion, RubricStore, ScoreAnchor
+from .rubrics import Rubric, RubricQuestion, RubricStore, ScoreAnchor, criterion_evidence_requirements, rubric_questions
 from .preferences import MetaPrinciple, MetaRubric, PreferenceExample, PreferenceStore
 from .rubric_planner import RubricPlanner, RubricPlannerError
-from .planner import LLMRouter, RuleRouter, validate_plan
+from .planner import LLMRouter, RubricRouter, RuleRouter, validate_plan
 from .runner import RunConfig, RunReport, evaluate_one, run_eval, write_evidence
 from .score import (dataset_summary, simple_mean_case_score,
                     weighted_case_score)
@@ -38,7 +38,7 @@ __all__ = [
     "Case", "CaseEvidence", "Plan", "SkillResult", "SkillSpec",
     "AgentIdentity", "AgentOctagonAdapter", "HarborAdapter", "AgentOctagonRuntimeClient", "AgentOctagonRuntimeError", "ArtifactRef", "ConversationTurn", "EvalSample", "OctagonEnvironmentSkill", "OctagonLLMJudgeSkill", "OctagonScorerBridge", "OctagonScorerError", "score_octagon_samples",
     "JsonRuntimeAdapter", "RuntimeAdapter", "ToolCall", "EvidenceHit", "RuntimeEvidenceIndex",
-    "LLMBackend", "HttpJudgeClient", "MultiQuestionJudgeSkill", "JudgeClient", "JudgeClientError", "JudgeClientSkill", "JudgeRequest", "JudgeResponse", "Rubric", "RubricQuestion", "RubricStore", "PreferenceExample", "PreferenceStore", "MetaPrinciple", "MetaRubric", "RubricPlanner", "RubricPlannerError",
+    "LLMBackend", "HttpJudgeClient", "MultiQuestionJudgeSkill", "JudgeClient", "JudgeClientError", "JudgeClientSkill", "JudgeRequest", "JudgeResponse", "Rubric", "RubricQuestion", "RubricStore", "PreferenceExample", "PreferenceStore", "MetaPrinciple", "MetaRubric", "RubricPlanner", "RubricPlannerError", "criterion_evidence_requirements", "rubric_questions",
     "Capability", "CapabilityStore", "DEFAULT_TAXONOMY",
     "GoldJudgment", "FailureCode", "MetaCase", "JudgmentObservation", "MetaEvalRunner", "EvidenceSnapshot", "reorder", "add_distractors", "lengthen", "remove", "classify_failure", "score_metrics", "stability_metrics",
     "EvaluationRun", "build_manifest", "evaluator_snapshot",
@@ -50,7 +50,7 @@ __all__ = [
     "cohen_kappa", "spearman", "kendall_tau",
     "migration_report", "render_migration",
     "capability_report", "render_capability_report",
-    "LLMRouter", "RuleRouter", "validate_plan",
+    "LLMRouter", "RubricRouter", "RuleRouter", "validate_plan",
     "RunConfig", "RunReport", "evaluate_one", "run_eval", "write_evidence",
     "dataset_summary", "simple_mean_case_score", "weighted_case_score", "score_runtime_samples",
     "LLMSkill", "RuleSkill", "Skill", "SkillRegistry",

@@ -23,6 +23,7 @@ from typing import Any, Callable, Protocol
 from .backends import LLMBackend, build_messages
 from .io import value_digest
 from .protocols import Case, Plan
+from .rubrics import criterion_evidence_requirements, rubric_questions
 from .skills.registry import SkillRegistry
 
 VALID_ROLES = {"observation", "core", "diagnostic"}
@@ -49,6 +50,76 @@ class RuleRouter:
     def route(self, case: Case, catalog: list[dict[str, Any]]) -> Plan:
         plan = self.func(case, catalog)
         return validate_plan(plan, catalog)
+
+
+@dataclass
+class RubricRouter:
+    """Decorate an existing router with criterion-level evidence routing.
+
+    The wrapped router remains the source of the normal case-level plan. When
+    rubric questions declare ``preferred_skills`` or evidence sources, this
+    decorator annotates selections with the criteria they serve and removes
+    explicitly runtime-only skills that serve no runtime criterion. Rubrics
+    without declarations are passed through unchanged for compatibility.
+    """
+
+    base: Router
+    rubric: Any
+
+    def route(self, case: Case, catalog: list[dict[str, Any]]) -> Plan:
+        plan = self.base.route(case, catalog)
+        questions = rubric_questions(self.rubric)
+        if not questions:
+            return plan
+        specs = {str(item.get("skill_id")): item for item in catalog}
+        declared = any(
+            bool(criterion_evidence_requirements(q)["required"]
+                  or criterion_evidence_requirements(q)["optional"]
+                  or criterion_evidence_requirements(q)["preferred_skills"]
+                  or criterion_evidence_requirements(q)["requires_runtime_evidence"]
+                  or "evidence_required" in q or "evidence_sources" in q)
+            for q in questions
+        )
+        if not declared:
+            return plan
+        assignments: dict[str, list[str]] = {str(q.get("id")): [] for q in questions}
+        runtime_names = {"runtime", "runtrace", "trace", "runtime_evidence", "mcp", "tool"}
+        for q in questions:
+            qid = str(q.get("id") or "overall")
+            req = criterion_evidence_requirements(q)
+            required = {str(x).lower() for x in req["required"]}
+            for item in plan.selected_skills:
+                sid = str(item.get("skill_id") or "")
+                spec = specs.get(sid, {})
+                sources = {str(x).lower() for x in (spec.get("evidence_sources") or ())}
+                matches = bool(set(req["preferred_skills"]) & {sid})
+                matches = matches or bool(required & sources)
+                if req["requires_runtime_evidence"] and sources & runtime_names:
+                    matches = True
+                if matches:
+                    assignments[qid].append(sid)
+        selected = []
+        for item in plan.selected_skills:
+            sid = str(item.get("skill_id") or "")
+            criterion_ids = [qid for qid, ids in assignments.items() if sid in ids]
+            spec_sources = {str(x).lower() for x in (specs.get(sid, {}).get("evidence_sources") or ())}
+            is_runtime = bool(spec_sources & runtime_names or any(x in sid.lower() for x in ("trace", "runtime")))
+            if declared and is_runtime and not criterion_ids:
+                continue
+            params = dict(item.get("parameters") or {})
+            if criterion_ids:
+                params["criterion_ids"] = criterion_ids
+            selected.append({**item, "parameters": params})
+        if not selected:
+            selected = list(plan.selected_skills)
+        planner = dict(plan.planner)
+        planner["criterion_routing"] = {
+            qid: {"selected_skills": ids, "requirements": criterion_evidence_requirements(q)}
+            for qid, ids in assignments.items()
+        }
+        return validate_plan(Plan(
+            case_id=plan.case_id, selected_skills=tuple(selected),
+            skipped_skills=plan.skipped_skills, routing_mode="rubric", planner=planner), catalog)
 
 
 @dataclass

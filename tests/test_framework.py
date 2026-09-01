@@ -234,3 +234,24 @@ def test_case_context_is_serialized_in_evidence_and_invalidates_cache(tmp_path):
     assert second.evidence["c"].skill_results["context_skill"].score == 1.0
     assert second.cache_stats.get("skill_hits", 0) == 0
     assert second.evidence["c"].case["context"] == {"reward": 1.0}
+
+
+def test_rubric_router_annotates_criteria_and_drops_unneeded_runtime_skill():
+    from agenteval import RubricRouter
+
+    class Base:
+        def route(self, case, catalog):
+            return Plan(case_id=case.case_id, selected_skills=(
+                {"skill_id": "artifact", "role": "core", "reason": "base", "parameters": {}},
+                {"skill_id": "runtime", "role": "diagnostic", "reason": "base", "parameters": {}},
+            ), skipped_skills=())
+
+    rubric = {"questions": [{"id": "font", "evidence_required": ["artifact"]}]}
+    catalog = [
+        {"skill_id": "artifact", "role": "core", "question": "artifact", "evidence_sources": ["artifact"]},
+        {"skill_id": "runtime", "role": "diagnostic", "question": "runtime", "evidence_sources": ["runtime"]},
+    ]
+    plan = RubricRouter(Base(), rubric).route(Case("c", "task"), catalog)
+    assert plan.selected_ids == ("artifact",)
+    assert plan.selected_skills[0]["parameters"]["criterion_ids"] == ["font"]
+    assert plan.planner["criterion_routing"]["font"]["selected_skills"] == ["artifact"]

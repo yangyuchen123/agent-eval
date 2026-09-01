@@ -32,11 +32,12 @@ class Skill(abc.ABC):
     skill_id: str = ""
     role: str = "core"                 # "observation" | "core" | "diagnostic"
     question: str = ""                 # applicability question for the router
+    evidence_sources: tuple[str, ...] = ()  # sources acquired by this skill
     definition_version: str = "agenteval.skill.base"
 
     def spec(self) -> SkillSpec:
         return SkillSpec(skill_id=self.skill_id, role=self.role,  # type: ignore[arg-type]
-                         question=self.question)
+                         question=self.question, evidence_sources=self.evidence_sources)
 
     @abc.abstractmethod
     def evaluate(self, case: Case, output: str) -> SkillResult:

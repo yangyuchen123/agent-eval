@@ -103,3 +103,25 @@ def test_default_evidence_factory_accepts_harbor_path_inside_allowlist(tmp_path,
         trace_ref={"scheme": "harbor", "trial_dir": str(trial)},
     )
     assert default_evidence_factory(request).manifest()["record_count"] == 0
+
+
+def test_default_evidence_factory_accepts_harbor_artifact_ref_without_trace(tmp_path, monkeypatch):
+    import json
+    from agentjudge.http_service import default_evidence_factory
+    from agentjudge.models import JudgeRequest
+
+    trial = tmp_path / "trial"
+    (trial / "agent").mkdir(parents=True)
+    (trial / "agent" / "trajectory.json").write_text(json.dumps({"steps": []}))
+    artifact = trial / "artifacts" / "logs" / "artifacts" / "answer.txt"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("0", encoding="utf-8")
+    monkeypatch.setenv("JUDGE_ALLOWED_ROOTS", str(tmp_path))
+    request = JudgeRequest(
+        case={"case_id": "c", "task": "x"}, rubric={}, agent_output="0",
+        artifact_ref={"scheme": "harbor", "trial_dir": str(trial)},
+    )
+    catalog = default_evidence_factory(request)
+    manifest = catalog.manifest()
+    assert manifest["record_count"] == 1
+    assert manifest["sources"] == {"artifacts": 1}

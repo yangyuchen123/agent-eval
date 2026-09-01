@@ -13,7 +13,7 @@ import urllib.request
 from typing import Any, Mapping, Protocol
 
 from .protocols import Case, SkillResult
-from .rubrics import Rubric
+from .rubrics import Rubric, criterion_evidence_requirements
 from .skills.base import Skill
 
 
@@ -26,6 +26,7 @@ class JudgeRequest:
     trace_ref: Any = None
     artifact_ref: Any = None
     deterministic_result: Mapping[str, Any] | None = None
+    evidence_requirements: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -39,6 +40,7 @@ class JudgeRequest:
             "trace_ref": self.trace_ref,
             "artifact_ref": self.artifact_ref,
             "deterministic_result": dict(self.deterministic_result) if self.deterministic_result else None,
+            "evidence_requirements": self.evidence_requirements,
             "metadata": self.metadata,
         }
 
@@ -178,15 +180,17 @@ class JudgeClientSkill(Skill):
         self.role = role
 
     def evaluate(self, case: Case, output: str) -> SkillResult:
-        deterministic = case.context.get("deterministic_result")
+        question = dict(case.context.get("rubric_question") or {})
+        route = _question_evidence(question, case)
         request = JudgeRequest(
             case=_public_case(case),
             rubric=self.rubric,
-            rubric_question=dict(case.context.get("rubric_question") or {}),
+            rubric_question=question,
             agent_output=output,
-            trace_ref=case.context.get("trace_ref") or case.context.get("attempt_ref"),
-            artifact_ref=case.context.get("artifact_ref"),
-            deterministic_result=deterministic if isinstance(deterministic, Mapping) else None,
+            trace_ref=route["trace_ref"],
+            artifact_ref=route["artifact_ref"],
+            deterministic_result=route["deterministic_result"],
+            evidence_requirements=route["requirements"],
             metadata={
                 "env_name": case.metadata.get("env_name"),
                 "task_id": case.metadata.get("task_id") or case.case_id,
@@ -212,9 +216,51 @@ class JudgeClientSkill(Skill):
                 "evidence_refs": response.evidence_refs,
                 "findings": response.findings,
             },
-            diagnostics={"confidence": response.confidence, "judge_provenance": response.provenance},
+            diagnostics={"confidence": response.confidence, "judge_provenance": response.provenance,
+                         "criterion_routing": route,
+                         "runtrace": {"accessed": route["uses_runtrace"],
+                                      "analysis_calls": 1 if route["uses_runtrace"] else 0}},
         )
 
+
+
+def _question_evidence(question: Mapping[str, Any], case: Case) -> dict[str, Any]:
+    """Resolve criterion evidence without making trace a universal default.
+
+    Legacy questions have no declaration and intentionally retain the old
+    trace-ref behavior for compatibility. Explicit declarations are authoritative
+    and can therefore make artifact/deterministic criteria trace-free.
+    """
+    requirements = criterion_evidence_requirements(dict(question))
+    declared = bool(requirements["required"] or requirements["optional"]
+                    or requirements["preferred_skills"]
+                    or requirements["requires_runtime_evidence"]
+                    or "evidence_required" in question
+                    or "evidence_sources" in question)
+    required = {str(value).lower() for value in requirements["required"]}
+    optional = {str(value).lower() for value in requirements["optional"]}
+    runtime_names = {"runtime", "runtrace", "trace", "runtime_evidence", "mcp", "tool"}
+    artifact_names = {"artifact", "artifacts", "artifact_evidence"}
+    deterministic_names = {"deterministic", "verifier", "test", "test_result"}
+    wants_runtime = (requirements["requires_runtime_evidence"]
+                     or bool(required & runtime_names)
+                     or bool(optional & runtime_names))
+    wants_artifact = bool(required & artifact_names) or bool(optional & artifact_names)
+    wants_deterministic = bool(required & deterministic_names) or bool(optional & deterministic_names)
+    # No declaration is the compatibility fallback. Once declared, only pass
+    # refs that the criterion requested; optional refs are still available.
+    if not declared:
+        wants_runtime = True
+        wants_artifact = True
+        wants_deterministic = True
+    return {
+        "requirements": requirements,
+        "declared": declared,
+        "trace_ref": (case.context.get("trace_ref") or case.context.get("attempt_ref")) if wants_runtime else None,
+        "artifact_ref": case.context.get("artifact_ref") if wants_artifact else None,
+        "deterministic_result": _deterministic_result(case) if wants_deterministic else None,
+        "uses_runtrace": bool(wants_runtime and (case.context.get("trace_ref") or case.context.get("attempt_ref") or case.context.get("trace") or case.context.get("raw_trace"))),
+    }
 
 
 class MultiQuestionJudgeSkill(Skill):
@@ -227,6 +273,7 @@ class MultiQuestionJudgeSkill(Skill):
     skill_id = "multi_question_judge"
     role = "diagnostic"
     question = "Can independent question judges evaluate the rubric dimensions?"
+    evidence_sources = ("artifact", "deterministic", "state", "runtime", "semantic")
     definition_version = "agenteval.multi-question-judge.v1"
 
     def __init__(self, client: JudgeClient, rubric: Rubric | Mapping[str, Any] | str,
@@ -246,15 +293,20 @@ class MultiQuestionJudgeSkill(Skill):
         all_refs: list[str] = []
         provenance: list[dict[str, Any]] = []
         statuses: list[str] = []
+        criterion_routes: dict[str, dict[str, Any]] = {}
         for question in questions:
+            route = _question_evidence(question, case)
+            qid = str(question.get("id") or "overall")
+            criterion_routes[qid] = route
             request = JudgeRequest(
                 case=_public_case(case),
                 rubric=self.rubric,
                 rubric_question=dict(question),
                 agent_output=output,
-                trace_ref=case.context.get("trace_ref") or case.context.get("attempt_ref"),
-                artifact_ref=case.context.get("artifact_ref"),
-                deterministic_result=_deterministic_result(case),
+                trace_ref=route["trace_ref"],
+                artifact_ref=route["artifact_ref"],
+                deterministic_result=route["deterministic_result"],
+                evidence_requirements=route["requirements"],
                 metadata={
                     "env_name": case.metadata.get("env_name"),
                     "task_id": case.metadata.get("task_id") or case.case_id,
@@ -298,6 +350,12 @@ class MultiQuestionJudgeSkill(Skill):
             diagnostics={
                 "judge_provenance": provenance, "question_count": len(questions),
                 "question_statuses": statuses,
+                "criterion_routing": criterion_routes,
+                "runtrace": {
+                    "criteria_using_runtrace": sum(1 for route in criterion_routes.values() if route["uses_runtrace"]),
+                    "analysis_calls": sum(1 for route in criterion_routes.values() if route["uses_runtrace"]),
+                    "declared_criteria": sum(1 for route in criterion_routes.values() if route["declared"]),
+                },
                 "judge": {
                     "model": judge_models[0] if judge_models else None,
                     "rubric_id": rubric_data.get("rubric_id"),

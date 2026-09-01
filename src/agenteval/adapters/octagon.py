@@ -269,6 +269,10 @@ class AgentOctagonAdapter:
                     "scheme": "agent-octagon",
                     "attempt_id": attempt_id,
                     "run_id": row.get("run_id"),
+                    # The independent Judge receives this explicit local
+                    # evidence reference; it never receives the private
+                    # reconstruction payload as a prompt.
+                    "attempt_dir": str(attempt_dir),
                 },
                 "artifact_ref": {
                     "scheme": "agent-octagon",
