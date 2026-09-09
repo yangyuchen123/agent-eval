@@ -1,4 +1,10 @@
-"""Adapters and runtime-neutral sample contracts."""
+"""Adapters and runtime-neutral sample contracts.
+
+Stable scoring inputs live on ``RuntimeAdapter`` / ``EvalSample``. The Octagon
+runtime client, ``OctagonLLMJudgeSkill``, and ``RuntimeEvidenceIndex`` are
+transitional compatibility surfaces; new code should score persisted attempts
+and call an independent Judge via ``JudgeClient``.
+"""
 
 from .contracts import (
     AgentIdentity,

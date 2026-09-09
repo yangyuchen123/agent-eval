@@ -2,6 +2,10 @@
 
 Domain-agnostic core: cases, skills, routing, evidence trees and scoring.
 Evaluation cases and skills live in *case packages* outside this framework.
+
+Public exports are the evaluation contract. Transitional Octagon runtime
+client, in-process LLM judge, and runtime evidence retrieval stay in
+``agenteval.adapters`` and are not part of the package root API.
 """
 
 from .analysis import (capability_report, cohen_kappa,
@@ -10,8 +14,11 @@ from .analysis import (capability_report, cohen_kappa,
                        render_capability_report, render_diagnostics,
                        render_migration, rubric_diagnostics, spearman)
 from .backends import LLMBackend
-from .adapters import (AgentIdentity, AgentOctagonAdapter, HarborAdapter, AgentOctagonRuntimeClient, AgentOctagonRuntimeError, ArtifactRef, ConversationTurn, EvalSample, OctagonEnvironmentSkill, OctagonLLMJudgeSkill, OctagonScorerBridge, OctagonScorerError, score_octagon_samples,
-                       JsonRuntimeAdapter, RuntimeAdapter, ToolCall, EvidenceHit, RuntimeEvidenceIndex)
+from .adapters import (AgentIdentity, AgentOctagonAdapter, HarborAdapter,
+                       ArtifactRef, ConversationTurn, EvalSample,
+                       OctagonEnvironmentSkill, OctagonScorerBridge,
+                       OctagonScorerError, score_octagon_samples,
+                       JsonRuntimeAdapter, RuntimeAdapter, ToolCall)
 from .capabilities import Capability, CapabilityStore, DEFAULT_TAXONOMY
 from .history import (EvalRecord, HistoryStore, new_run_id,
                       question_stats, rubric_question_report,
@@ -31,16 +38,26 @@ from .score import (dataset_summary, simple_mean_case_score,
 from .skills.base import LLMSkill, RuleSkill, Skill
 from .skills.registry import SkillRegistry
 from .skills.rubric import FineGrainedRubric
+from .runtime_judge import score_runtime_samples
 
 __version__ = "0.1.0"
 
 __all__ = [
     "Case", "CaseEvidence", "Plan", "SkillResult", "SkillSpec",
-    "AgentIdentity", "AgentOctagonAdapter", "HarborAdapter", "AgentOctagonRuntimeClient", "AgentOctagonRuntimeError", "ArtifactRef", "ConversationTurn", "EvalSample", "OctagonEnvironmentSkill", "OctagonLLMJudgeSkill", "OctagonScorerBridge", "OctagonScorerError", "score_octagon_samples",
-    "JsonRuntimeAdapter", "RuntimeAdapter", "ToolCall", "EvidenceHit", "RuntimeEvidenceIndex",
-    "LLMBackend", "HttpJudgeClient", "MultiQuestionJudgeSkill", "JudgeClient", "JudgeClientError", "JudgeClientSkill", "JudgeRequest", "JudgeResponse", "Rubric", "RubricQuestion", "RubricStore", "PreferenceExample", "PreferenceStore", "MetaPrinciple", "MetaRubric", "RubricPlanner", "RubricPlannerError", "criterion_evidence_requirements", "rubric_questions",
+    "AgentIdentity", "AgentOctagonAdapter", "HarborAdapter", "ArtifactRef",
+    "ConversationTurn", "EvalSample", "OctagonEnvironmentSkill",
+    "OctagonScorerBridge", "OctagonScorerError", "score_octagon_samples",
+    "JsonRuntimeAdapter", "RuntimeAdapter", "ToolCall",
+    "LLMBackend", "HttpJudgeClient", "MultiQuestionJudgeSkill", "JudgeClient",
+    "JudgeClientError", "JudgeClientSkill", "JudgeRequest", "JudgeResponse",
+    "Rubric", "RubricQuestion", "RubricStore", "PreferenceExample",
+    "PreferenceStore", "MetaPrinciple", "MetaRubric", "RubricPlanner",
+    "RubricPlannerError", "criterion_evidence_requirements", "rubric_questions",
     "Capability", "CapabilityStore", "DEFAULT_TAXONOMY",
-    "GoldJudgment", "FailureCode", "MetaCase", "JudgmentObservation", "MetaEvalRunner", "EvidenceSnapshot", "reorder", "add_distractors", "lengthen", "remove", "classify_failure", "score_metrics", "stability_metrics",
+    "GoldJudgment", "FailureCode", "MetaCase", "JudgmentObservation",
+    "MetaEvalRunner", "EvidenceSnapshot", "reorder", "add_distractors",
+    "lengthen", "remove", "classify_failure", "score_metrics",
+    "stability_metrics",
     "EvaluationRun", "build_manifest", "evaluator_snapshot",
     "load_manifest", "write_manifest",
     "EvalRecord", "HistoryStore", "new_run_id",
@@ -52,10 +69,9 @@ __all__ = [
     "capability_report", "render_capability_report",
     "LLMRouter", "RubricRouter", "RuleRouter", "validate_plan",
     "RunConfig", "RunReport", "evaluate_one", "run_eval", "write_evidence",
-    "dataset_summary", "simple_mean_case_score", "weighted_case_score", "score_runtime_samples",
+    "dataset_summary", "simple_mean_case_score", "weighted_case_score",
+    "score_runtime_samples",
     "LLMSkill", "RuleSkill", "Skill", "SkillRegistry",
     "FineGrainedRubric",
     "__version__",
 ]
-
-from .runtime_judge import score_runtime_samples

@@ -297,13 +297,16 @@ launch_readiness_score
 当前仓库中仍存在一些早期集成实现：
 
 ```text
-src/agenteval/adapters/octagon_scorer.py
-src/agenteval/adapters/runtime_evidence.py
-src/agenteval/backends.py::infer_with_tools
+src/agenteval/adapters/octagon_scorer.py      # OctagonLLMJudgeSkill, env scorer bridge
+src/agenteval/adapters/runtime_evidence.py    # RuntimeEvidenceIndex / grep_runtime_evidence
+src/agenteval/adapters/octagon_runtime.py     # AgentOctagonRuntimeClient.create_run
+src/agenteval/backends.py::infer_with_tools   # in-process judge tool loop
+cli: octagon-eval                             # 兼容入口，会启动 runtime
 ```
 
 它们用于验证 AgentOctagon 与 LLM judge 的适配，但不应被视为最终系统边界。
-长期迁移方向是：
+2026-09-09 已收口：上述符号不再从 `agenteval` 包根导出；`octagon-eval` 会打印
+兼容警告。长期迁移方向是：
 
 ```text
 OctagonLLMJudgeSkill
@@ -314,10 +317,13 @@ RuntimeEvidenceIndex
 
 infer_with_tools / evidence tool loop
     → 独立 Judge session/runtime
+
+octagon-eval
+    → eval-system 启动 run + AgentEval octagon-score
 ```
 
 在迁移完成前，AgentEval 可以保留兼容实现，但新功能不应继续把 evidence retrieval
-和 judge policy 扩散到 AgentEval 核心。
+和 judge policy 扩散到 AgentEval 核心，也不应再从包根重新导出这些符号。
 
 ## 6. 任务分解案例的职责分工
 

@@ -197,7 +197,13 @@ def _octagon_judge_config(args: argparse.Namespace):
 
 
 def cmd_octagon_eval(args: argparse.Namespace) -> int:
-    """Start one AgentOctagon run, then score its persisted attempts."""
+    """Compatibility: start one AgentOctagon run, then score its attempts."""
+    print(
+        "[agenteval] warning: octagon-eval is a compatibility command. "
+        "Starting runs belongs to eval-system; prefer octagon-score on "
+        "persisted attempts.",
+        file=sys.stderr,
+    )
     agents = args.agent or ["blade-agent"]
     models = None
     if args.models_json:
@@ -479,7 +485,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p_octagon_eval = sub.add_parser(
         "octagon-eval",
-        help="start an AgentOctagon run and score its attempts",
+        help="[compat] start an AgentOctagon run then score it; prefer eval-system + octagon-score",
     )
     p_octagon_eval.add_argument("--base-url", default="http://localhost:8100",
                                help="AgentOctagon HTTP API base URL")

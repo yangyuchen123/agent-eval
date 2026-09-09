@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import agenteval
 from agenteval import (
     AgentIdentity,
     ArtifactRef,
@@ -13,6 +14,25 @@ from agenteval import (
     JsonRuntimeAdapter,
     ToolCall,
 )
+
+
+def test_package_root_does_not_export_transitional_runtime_judge_internals():
+    banned = {
+        "AgentOctagonRuntimeClient",
+        "AgentOctagonRuntimeError",
+        "OctagonLLMJudgeSkill",
+        "RuntimeEvidenceIndex",
+        "EvidenceHit",
+    }
+    assert banned.isdisjoint(agenteval.__all__)
+    for name in banned:
+        assert not hasattr(agenteval, name)
+    from agenteval.adapters import (
+        AgentOctagonRuntimeClient,
+        OctagonLLMJudgeSkill,
+        RuntimeEvidenceIndex,
+    )
+    assert AgentOctagonRuntimeClient and OctagonLLMJudgeSkill and RuntimeEvidenceIndex
 
 
 def test_eval_sample_projects_multiturn_runtime_data_to_case():
@@ -192,7 +212,7 @@ def test_octagon_scorer_bridge_normalizes_environment_scores(tmp_path: Path):
 def test_octagon_runtime_client_create_and_wait(monkeypatch):
     import io
     import json as json_module
-    from agenteval import AgentOctagonRuntimeClient
+    from agenteval.adapters import AgentOctagonRuntimeClient
 
     calls = []
     responses = [
@@ -226,7 +246,7 @@ def test_octagon_runtime_client_create_and_wait(monkeypatch):
 
 
 def test_octagon_runtime_client_run_does_not_forward_wait_options(monkeypatch):
-    from agenteval import AgentOctagonRuntimeClient
+    from agenteval.adapters import AgentOctagonRuntimeClient
     client = AgentOctagonRuntimeClient()
     seen = {}
     monkeypatch.setattr(client, "create_run", lambda **kwargs: seen.update(kwargs) or type("R", (), {"run_id": "r"})())

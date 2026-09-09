@@ -159,7 +159,30 @@ Run Manifest (run_manifest.json): agent/环境/benchmark/evaluator 快照
 | `analysis.py` | 3.1-3.3 全部统计 | 见第 5 节。 |
 | `capabilities.py` | `Capability(id, desc, parent)` + taxonomy 加载/校验 | 未来 ontology 的 schema,现在只做校验不做自动化。 |
 | `manifest.py` | `EvaluationRun` + 写/读 run_manifest.json | 可复现性:报告附带产生条件。 |
-| `cli.py` | `eval / analyze / migrate / verify` | 见第 9 节。 |
+| `cli.py` | 生产入口：`eval / octagon-score / harbor-score / analyze / migrate / verify`。`octagon-eval` 是兼容命令，会启动 runtime 并打印 warning。 | 见第 9 节。 |
+| `judge.py` | `JudgeRequest` / `JudgeClient` / `JudgeResponse` / `JudgeClientSkill` | AgentEval 只做 transport 和 Skill 适配；证据检索与 judge policy 在独立 `judge/` 项目。 |
+| `runtime_judge.py` | 用独立 Judge 对 `EvalSample` 做多问题评分 | Harbor / runtime-neutral 路径。 |
+| `preferences.py` / `rubric_planner.py` | 从人类偏好归纳 MetaRubric，并实例化 case rubric | 组织层，不是 Judge 内部策略。 |
+
+### 适配器（`src/agenteval/adapters/`，不进 runner）
+
+| 文件 | 职责 | 边界 |
+| --- | --- | --- |
+| `contracts.py` | runtime-neutral `EvalSample` / `RuntimeAdapter` | 稳定输入契约，包根导出。 |
+| `octagon.py` / `harbor.py` / `json.py` | 读取已完成 attempt / trial | 只读产物，不启动 runtime。 |
+| `octagon_scorer.py` | 环境确定性 scorer + 过渡 `OctagonLLMJudgeSkill` | 后者不应再扩散；新判断走 `JudgeClient`。 |
+| `runtime_evidence.py` | 过渡 `RuntimeEvidenceIndex` | 属于独立 Judge 的职责，不从包根导出。 |
+| `octagon_runtime.py` | `AgentOctagonRuntimeClient.create_run` | 兼容旧编排；目标是 eval-system 启动 run。 |
+
+### 研究模块（包内旁路，不进核心 runner）
+
+| 路径 | 职责 |
+| --- | --- |
+| `meta_eval/` | Gold / perturbation / reliability runner |
+| `rrd_optimizer/` | 独立 response-driven rubric optimizer |
+| `rubric_generation.py` 等 `rubric_*` | 生成、refine、classification、defect 诊断实验代码 |
+
+这些模块可以继续演进，但 `runner.py` / `protocols.py` / `skills/` 不得反向依赖它们。正式实验应走共享 runner/manifest，见 [`EXPERIMENT_POLICY.md`](EXPERIMENT_POLICY.md)。共享 `experiments/runner.py` 尚未落地，在此之前不要新增根目录 `tools_run_*.py`。
 
 ### Skills(`src/agenteval/skills/`)
 
@@ -266,6 +289,12 @@ TP(数据太简单,κ 无定义)。
 # 评测(案例包内)
 python evaluate_predictions.py --predictions predictions.json --run-root run/pi --agent-name pi --agent-version v1
 python evaluate_gdpval.py --outputs outputs_demo.json --run-root run/demo --agent-name pi
+
+# 读取已完成 runtime 产物并评分（目标入口）
+agenteval octagon-score --data-root ... --env-root ... --attempt-id ... --run-root run/octagon
+agenteval harbor-score --trial-root ... --rubric ... --run-root run/harbor-judge
+
+# 兼容：octagon-eval 仍会 create_run()，但会 warning；新流程不要用它启动 runtime
 
 # 诊断(rubric 质量问题)
 agenteval analyze --history run/pi/history.jsonl --history run/gold/history.jsonl \

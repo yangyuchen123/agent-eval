@@ -66,10 +66,11 @@ eval-system  →  AgentEval  →  Agent Judge
 完整边界见 [`docs/SYSTEM_BOUNDARIES.md`](docs/SYSTEM_BOUNDARIES.md)。
 Judge 的独立架构、PydanticAI subagent、EvidenceProvider、claim/evidence chain 和迁移计划见
 [`docs/JUDGE_ARCHITECTURE.md`](docs/JUDGE_ARCHITECTURE.md)。
+当前文档入口见 [`docs/DOC_INDEX.md`](docs/DOC_INDEX.md)。
 
-Runtime evidence 的问题、解决方案、验证结果和未解决事项见 [`docs/RUNTIME_EVIDENCE_ISSUES.md`](docs/RUNTIME_EVIDENCE_ISSUES.md)。
-
-当前实现审查、EvidenceCatalog 修改点和真实 trace 验证见 [`docs/RUNTIME_EVIDENCE_IMPLEMENTATION_REVIEW.md`](docs/RUNTIME_EVIDENCE_IMPLEMENTATION_REVIEW.md)。
+仓库里仍有过渡实现：`octagon-eval` 会启动 AgentOctagon run，`OctagonLLMJudgeSkill`
+和 `RuntimeEvidenceIndex` 仍在 `agenteval.adapters` 内。它们不是目标边界，也不再从
+`agenteval` 包根导出。新代码应读取已完成的 attempt，并通过 `JudgeClient` 调用独立 Judge。
 
 AgentEval 侧的独立 Judge 接口位于 `src/agenteval/judge.py`：
 
@@ -148,6 +149,9 @@ AgentEval 支持对由 `eval-system` 收集完成的 AgentOctagon attempt 进行
 # 例如：
 # eval-system run ... --output /path/to/attempt
 # .venv/bin/agenteval octagon-score ... --attempt-id <attempt_id>
+#
+# 兼容入口 agenteval octagon-eval 仍会 create_run()，但会打印 deprecation
+# warning。新流程不要用它启动 runtime。
 ```
 
 确定性评分和独立 Judge 可以通过 `--deterministic-weight` 与 `--judge-weight`

@@ -32,7 +32,7 @@ EvalSample
         AgentEval report
 ```
 
-历史版本中的 `octagon-eval` 是兼容性编排入口，不代表目标架构。当前目标是由 `eval-system` 创建/运行 AgentOctagon 或 Harbor attempt，完成后由 AgentEval 读取 attempt 并评分。AgentEval 不启动 agent、不轮询 runtime，也不在本地重新实现 runtime。
+历史版本中的 `octagon-eval` 是兼容性编排入口，不代表目标架构。2026-09-09 起该命令会打印 deprecation warning，并建议改用 `eval-system` + `octagon-score`。`OctagonLLMJudgeSkill`、`RuntimeEvidenceIndex` 和 `AgentOctagonRuntimeClient` 仍在 `agenteval.adapters` 内，但不再从 `agenteval` 包根导出。当前目标是由 `eval-system` 创建/运行 AgentOctagon 或 Harbor attempt，完成后由 AgentEval 读取 attempt 并评分。AgentEval 不启动 agent、不轮询 runtime，也不在本地重新实现 runtime。
 
 ## 2. 统一数据模型
 
@@ -257,7 +257,7 @@ eval-system run \
   --run-root run/octagon-score
 ```
 
-仓库中历史版本的 `octagon-eval` 仍可能存在，用于兼容旧的 HTTP 编排流程；它不是
+仓库中的 `octagon-eval` 仍可用于兼容旧的 HTTP 编排流程，但会打印 warning；它不是
 当前目标架构，也不应继续扩展为 AgentEval 的 runtime runner。
 
 ## 5. 结果文件

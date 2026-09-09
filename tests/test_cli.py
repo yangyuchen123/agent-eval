@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import io
 import json
+from contextlib import redirect_stdout
 from pathlib import Path
 
 import pytest
@@ -16,6 +18,17 @@ def test_load_cases_rejects_duplicate_ids(tmp_path: Path):
     ]}))
     with pytest.raises(SystemExit, match="duplicate"):
         _load_cases(path)
+
+
+def test_octagon_eval_help_marks_compatibility():
+    buf = io.StringIO()
+    with redirect_stdout(buf), pytest.raises(SystemExit) as exc:
+        main(["-h"])
+    assert exc.value.code == 0
+    help_text = buf.getvalue()
+    assert "octagon-eval" in help_text
+    assert "compat" in help_text.lower()
+    assert "octagon-score" in help_text
 
 
 def test_eval_rejects_empty_manifest(tmp_path: Path):

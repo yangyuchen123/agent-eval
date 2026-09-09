@@ -20,6 +20,12 @@ video evaluation framework). Three buckets — see
   rubrics, pi predictions) was added here; HarnessEval-W's video
   benchmark/runs data did not come along.
 
+This project is an **evaluation orchestration shell**, not an agent framework
+and not the independent Judge. See [SYSTEM_BOUNDARIES.md](SYSTEM_BOUNDARIES.md):
+eval-system runs/collects, AgentEval adapts/organizes/aggregates, and Agent Judge
+retrieves evidence and judges. The layers below describe AgentEval's rubric /
+history / diagnostics capabilities; they are not an in-repo agent-improvement loop.
+
 This project is an **evaluation infrastructure**, not an agent framework.
 The boundary is deliberate:
 
