@@ -1,5 +1,0 @@
-#!/usr/bin/env python3
-"""Compatibility wrapper; canonical script is in archive/2026-08-31/project-history/scripts/tools_plot_small_anchor_turning_point.py."""
-from pathlib import Path
-import runpy
-runpy.run_path(str(Path(__file__).resolve().parent / "archive/2026-08-31/project-history/scripts/tools_plot_small_anchor_turning_point.py"), run_name="__main__")

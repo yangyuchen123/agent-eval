@@ -336,7 +336,6 @@ def test_two_and_five_level_resolution_ablations_preserve_process_questions():
 
 def test_gold_anchor_experiment_manifest_is_offline_and_four_conditioned(tmp_path, monkeypatch):
     import json
-    from tools_build_anchor_gold_experiment import main
     gold_dir = tmp_path / "gold"
     gold_dir.mkdir()
     (gold_dir / "a.json").write_text(json.dumps({
@@ -442,8 +441,16 @@ def test_failure_taxonomy_can_record_judge_environment_contamination_explicitly(
 
 
 def test_prepare_judge_calibration_joins_human_gold_only(tmp_path):
+    import importlib.util
     import json
-    from tools_prepare_judge_calibration import build_bundle
+    from pathlib import Path
+
+    script = Path(__file__).resolve().parents[1] / "archive/2026-08-31/project-history/scripts/tools_prepare_judge_calibration.py"
+    spec = importlib.util.spec_from_file_location("tools_prepare_judge_calibration", script)
+    module = importlib.util.module_from_spec(spec)
+    assert spec is not None and spec.loader is not None
+    spec.loader.exec_module(module)
+    build_bundle = module.build_bundle
 
     gold_dir = tmp_path / "gold"
     gold_dir.mkdir()
