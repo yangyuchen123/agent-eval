@@ -1,0 +1,512 @@
+[
+  {
+    "task_id": "external-agencybench-code-1-reaction-rate_001",
+    "request": {
+      "env_name": "external-agencybench-code-1-reaction-rate",
+      "task_id": "external-agencybench-code-1-reaction-rate_001",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "models": {
+        "claude-code": "or-cc/deepseek/deepseek-v4-flash-0731",
+        "codex": "or-codex/deepseek/deepseek-v4-flash-0731",
+        "blade-agent": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731"
+      },
+      "compare_mode": "same-model",
+      "execution": "parallel",
+      "timeout_seconds": 900,
+      "capture_policy": "metadata"
+    },
+    "response": {
+      "run_id": "run_4494274cd73a",
+      "task_id": "external-agencybench-code-1-reaction-rate_001",
+      "env_name": "external-agencybench-code-1-reaction-rate",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "attempts": [
+        {
+          "attempt_id": "att_3589ae451872",
+          "agent": "claude-code",
+          "model": "or-cc/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_a60d7463029d",
+          "agent": "codex",
+          "model": "or-codex/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_5d2a9a5b039c",
+          "agent": "blade-agent",
+          "model": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        }
+      ]
+    }
+  },
+  {
+    "task_id": "external-agencybench-code-2-repo-review_001",
+    "request": {
+      "env_name": "external-agencybench-code-2-repo-review",
+      "task_id": "external-agencybench-code-2-repo-review_001",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "models": {
+        "claude-code": "or-cc/deepseek/deepseek-v4-flash-0731",
+        "codex": "or-codex/deepseek/deepseek-v4-flash-0731",
+        "blade-agent": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731"
+      },
+      "compare_mode": "same-model",
+      "execution": "parallel",
+      "timeout_seconds": 900,
+      "capture_policy": "metadata"
+    },
+    "response": {
+      "run_id": "run_3fef66d7435e",
+      "task_id": "external-agencybench-code-2-repo-review_001",
+      "env_name": "external-agencybench-code-2-repo-review",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "attempts": [
+        {
+          "attempt_id": "att_42b2fb416108",
+          "agent": "claude-code",
+          "model": "or-cc/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_55aacf8dd6b0",
+          "agent": "codex",
+          "model": "or-codex/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_15217781de6a",
+          "agent": "blade-agent",
+          "model": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        }
+      ]
+    }
+  },
+  {
+    "task_id": "external-agencybench-code-3-event-generator_001",
+    "request": {
+      "env_name": "external-agencybench-code-3-event-generator",
+      "task_id": "external-agencybench-code-3-event-generator_001",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "models": {
+        "claude-code": "or-cc/deepseek/deepseek-v4-flash-0731",
+        "codex": "or-codex/deepseek/deepseek-v4-flash-0731",
+        "blade-agent": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731"
+      },
+      "compare_mode": "same-model",
+      "execution": "parallel",
+      "timeout_seconds": 900,
+      "capture_policy": "metadata"
+    },
+    "response": {
+      "run_id": "run_967c548637ff",
+      "task_id": "external-agencybench-code-3-event-generator_001",
+      "env_name": "external-agencybench-code-3-event-generator",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "attempts": [
+        {
+          "attempt_id": "att_0e49375c8362",
+          "agent": "claude-code",
+          "model": "or-cc/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_4026d0fdf6b5",
+          "agent": "codex",
+          "model": "or-codex/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_d24e4007e4b1",
+          "agent": "blade-agent",
+          "model": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        }
+      ]
+    }
+  },
+  {
+    "task_id": "external-agencybench-code-4-graph-algorithm_001",
+    "request": {
+      "env_name": "external-agencybench-code-4-graph-algorithm",
+      "task_id": "external-agencybench-code-4-graph-algorithm_001",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "models": {
+        "claude-code": "or-cc/deepseek/deepseek-v4-flash-0731",
+        "codex": "or-codex/deepseek/deepseek-v4-flash-0731",
+        "blade-agent": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731"
+      },
+      "compare_mode": "same-model",
+      "execution": "parallel",
+      "timeout_seconds": 900,
+      "capture_policy": "metadata"
+    },
+    "response": {
+      "run_id": "run_9c7adf0a309f",
+      "task_id": "external-agencybench-code-4-graph-algorithm_001",
+      "env_name": "external-agencybench-code-4-graph-algorithm",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "attempts": [
+        {
+          "attempt_id": "att_9892dc624aa8",
+          "agent": "claude-code",
+          "model": "or-cc/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_53e288a743b3",
+          "agent": "codex",
+          "model": "or-codex/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_83da83d8145d",
+          "agent": "blade-agent",
+          "model": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        }
+      ]
+    }
+  },
+  {
+    "task_id": "external-agencybench-code-5-deep-research_001",
+    "request": {
+      "env_name": "external-agencybench-code-5-deep-research",
+      "task_id": "external-agencybench-code-5-deep-research_001",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "models": {
+        "claude-code": "or-cc/deepseek/deepseek-v4-flash-0731",
+        "codex": "or-codex/deepseek/deepseek-v4-flash-0731",
+        "blade-agent": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731"
+      },
+      "compare_mode": "same-model",
+      "execution": "parallel",
+      "timeout_seconds": 900,
+      "capture_policy": "metadata"
+    },
+    "response": {
+      "run_id": "run_79007f0dc2ea",
+      "task_id": "external-agencybench-code-5-deep-research_001",
+      "env_name": "external-agencybench-code-5-deep-research",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "attempts": [
+        {
+          "attempt_id": "att_7d85ed23619b",
+          "agent": "claude-code",
+          "model": "or-cc/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_69d1cf066cf7",
+          "agent": "codex",
+          "model": "or-codex/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_af83b3dd33f6",
+          "agent": "blade-agent",
+          "model": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        }
+      ]
+    }
+  },
+  {
+    "task_id": "external-devai-51-hidden-messages_001",
+    "request": {
+      "env_name": "external-devai-51-hidden-messages",
+      "task_id": "external-devai-51-hidden-messages_001",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "models": {
+        "claude-code": "or-cc/deepseek/deepseek-v4-flash-0731",
+        "codex": "or-codex/deepseek/deepseek-v4-flash-0731",
+        "blade-agent": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731"
+      },
+      "compare_mode": "same-model",
+      "execution": "parallel",
+      "timeout_seconds": 900,
+      "capture_policy": "metadata"
+    },
+    "response": {
+      "run_id": "run_f4d382ebf582",
+      "task_id": "external-devai-51-hidden-messages_001",
+      "env_name": "external-devai-51-hidden-messages",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "attempts": [
+        {
+          "attempt_id": "att_0ebee72099a4",
+          "agent": "claude-code",
+          "model": "or-cc/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_b1721af94fac",
+          "agent": "codex",
+          "model": "or-codex/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_08e802239685",
+          "agent": "blade-agent",
+          "model": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        }
+      ]
+    }
+  },
+  {
+    "task_id": "external-devai-52-qlora_001",
+    "request": {
+      "env_name": "external-devai-52-qlora",
+      "task_id": "external-devai-52-qlora_001",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "models": {
+        "claude-code": "or-cc/deepseek/deepseek-v4-flash-0731",
+        "codex": "or-codex/deepseek/deepseek-v4-flash-0731",
+        "blade-agent": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731"
+      },
+      "compare_mode": "same-model",
+      "execution": "parallel",
+      "timeout_seconds": 900,
+      "capture_policy": "metadata"
+    },
+    "response": {
+      "run_id": "run_bb12590e61ff",
+      "task_id": "external-devai-52-qlora_001",
+      "env_name": "external-devai-52-qlora",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "attempts": [
+        {
+          "attempt_id": "att_4d021a544dc5",
+          "agent": "claude-code",
+          "model": "or-cc/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_8412a8ddf439",
+          "agent": "codex",
+          "model": "or-codex/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_d24494bddcee",
+          "agent": "blade-agent",
+          "model": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        }
+      ]
+    }
+  },
+  {
+    "task_id": "external-devai-53-road-damage_001",
+    "request": {
+      "env_name": "external-devai-53-road-damage",
+      "task_id": "external-devai-53-road-damage_001",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "models": {
+        "claude-code": "or-cc/deepseek/deepseek-v4-flash-0731",
+        "codex": "or-codex/deepseek/deepseek-v4-flash-0731",
+        "blade-agent": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731"
+      },
+      "compare_mode": "same-model",
+      "execution": "parallel",
+      "timeout_seconds": 900,
+      "capture_policy": "metadata"
+    },
+    "response": {
+      "run_id": "run_692b673660e7",
+      "task_id": "external-devai-53-road-damage_001",
+      "env_name": "external-devai-53-road-damage",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "attempts": [
+        {
+          "attempt_id": "att_24e73374fc70",
+          "agent": "claude-code",
+          "model": "or-cc/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_e6c871b74819",
+          "agent": "codex",
+          "model": "or-codex/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_2930788fa255",
+          "agent": "blade-agent",
+          "model": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        }
+      ]
+    }
+  },
+  {
+    "task_id": "external-devai-54-openai-response-analyzer_001",
+    "request": {
+      "env_name": "external-devai-54-openai-response-analyzer",
+      "task_id": "external-devai-54-openai-response-analyzer_001",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "models": {
+        "claude-code": "or-cc/deepseek/deepseek-v4-flash-0731",
+        "codex": "or-codex/deepseek/deepseek-v4-flash-0731",
+        "blade-agent": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731"
+      },
+      "compare_mode": "same-model",
+      "execution": "parallel",
+      "timeout_seconds": 900,
+      "capture_policy": "metadata"
+    },
+    "response": {
+      "run_id": "run_f9c32a82acbf",
+      "task_id": "external-devai-54-openai-response-analyzer_001",
+      "env_name": "external-devai-54-openai-response-analyzer",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "attempts": [
+        {
+          "attempt_id": "att_1efb9aafbd73",
+          "agent": "claude-code",
+          "model": "or-cc/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_a76e61142877",
+          "agent": "codex",
+          "model": "or-codex/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_3663563b3147",
+          "agent": "blade-agent",
+          "model": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        }
+      ]
+    }
+  },
+  {
+    "task_id": "external-devai-55-sqlite-viewer_001",
+    "request": {
+      "env_name": "external-devai-55-sqlite-viewer",
+      "task_id": "external-devai-55-sqlite-viewer_001",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "models": {
+        "claude-code": "or-cc/deepseek/deepseek-v4-flash-0731",
+        "codex": "or-codex/deepseek/deepseek-v4-flash-0731",
+        "blade-agent": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731"
+      },
+      "compare_mode": "same-model",
+      "execution": "parallel",
+      "timeout_seconds": 900,
+      "capture_policy": "metadata"
+    },
+    "response": {
+      "run_id": "run_f0b19af169a5",
+      "task_id": "external-devai-55-sqlite-viewer_001",
+      "env_name": "external-devai-55-sqlite-viewer",
+      "agents": [
+        "claude-code",
+        "codex",
+        "blade-agent"
+      ],
+      "attempts": [
+        {
+          "attempt_id": "att_73b02b108b25",
+          "agent": "claude-code",
+          "model": "or-cc/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_e9078ba938c1",
+          "agent": "codex",
+          "model": "or-codex/deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        },
+        {
+          "attempt_id": "att_65a31404f0e8",
+          "agent": "blade-agent",
+          "model": "provider-efe778e50f::deepseek/deepseek-v4-flash-0731",
+          "status": "queued"
+        }
+      ]
+    }
+  }
+]

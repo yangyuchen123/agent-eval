@@ -1,0 +1,20 @@
+{
+  "schema_version": "agent-octagon-experiment-manifest.v1",
+  "experiment_id": "external-bench-octagon-stability-20260902",
+  "date": "2026-09-02",
+  "runner": {"name":"agent-octagon","repo":"/home/yang/agent-octagon","envs_path":"/home/yang/agent-octagon-envs","execution":"parallel-within-task"},
+  "source_experiment": "external-bench-octagon-20260902",
+  "tasks": [
+    "external-agencybench-code-2-repo-review_001",
+    "external-agencybench-code-3-event-generator_001",
+    "external-devai-52-qlora_001",
+    "external-devai-54-openai-response-analyzer_001"
+  ],
+  "repeat_count": 3,
+  "treatment_variables": {"agent": ["claude-code","codex","blade-agent"], "repeat": [1,2,3]},
+  "frozen_variables": {"model_identity":"deepseek/deepseek-v4-flash-0731","timeout_seconds":900,"compare_mode":"same-model","execution":"parallel","capture_policy":"metadata","scorer_version":"external-octagon-scorer-v1"},
+  "model_mapping": {"claude-code":"or-cc/deepseek/deepseek-v4-flash-0731","codex":"or-codex/deepseek/deepseek-v4-flash-0731","blade-agent":"provider-efe778e50f::deepseek/deepseek-v4-flash-0731"},
+  "expected_call_topology":"each task x repeat -> three concurrent attempts, one per agent",
+  "cost_tier":"high",
+  "output_directory":"/home/yang/agent-octagon/data/external-bench-octagon-stability-20260902"
+}

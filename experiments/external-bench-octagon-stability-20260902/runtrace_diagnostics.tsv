@@ -1,0 +1,36 @@
+run_1b8813eb6230 att_f6cf43f5f59c claude-code completed 100 err=None trace=0 events=2755 ws=20 tools=
+run_1b8813eb6230 att_fee41d36deed codex completed 62 err=agent_timeout trace=0 events=33 ws=5 tools=agent_message:16,command_execution:14,todo_list:1
+run_1b8813eb6230 att_cf9a32cafa0e blade-agent interrupted None err=blade_session_waiting_for_input trace=6 events=37 ws=0 tools=Read:1,Bash:4,AskUserQuestion:1
+run_2ba7990b24cb att_5dde2255685c claude-code gave_up 40 err=[claude-code:unrecognized_model] {"model":"deepseek/deepseek-v4-flash-0731","query_source":"generate_session_title"} trace=0 events=2597 ws=191 tools=Bash:4
+run_2ba7990b24cb att_2617dbe7d2ea codex gave_up 40 err=agent_timeout trace=0 events=215 ws=213 tools=command_execution:201,agent_message:11,todo_list:1
+run_2ba7990b24cb att_ec73ba69464f blade-agent gave_up 32 err=agent_total_timeout trace=32 events=350 ws=11 tools=Bash:19,Read:1,update_plan:1,Write:11
+run_4b2bb61b6bc2 att_268772527172 claude-code completed 100 err=None trace=0 events=2468 ws=26 tools=Bash:1
+run_4b2bb61b6bc2 att_c994035cf8d6 codex completed 100 err=agent_timeout trace=0 events=89 ws=23 tools=agent_message:25,command_execution:61,todo_list:1
+run_4b2bb61b6bc2 att_7145070ab6e0 blade-agent completed 100 err=agent_total_timeout trace=44 events=372 ws=8 tools=update_plan:1,Bash:22,Write:12,Read:2,Edit:5,BgBash:2
+run_4cd7fdfded9e att_a5c0704c933b claude-code completed 100 err=None trace=0 events=4203 ws=16 tools=Bash:3
+run_4cd7fdfded9e att_a91b12553a6d codex gave_up 40 err=agent_timeout trace=0 events=265 ws=24 tools=command_execution:144,agent_message:119
+run_4cd7fdfded9e att_aa9ad762968d blade-agent completed 100 err=agent_total_timeout trace=60 events=399 ws=21 tools=Bash:21,Read:1,update_plan:6,Write:23,Edit:9
+run_54ce40faf121 att_2033df1bc35b claude-code completed 100 err=None trace=0 events=3691 ws=14 tools=
+run_54ce40faf121 att_25e41dd5f7d4 codex completed 100 err=agent_timeout trace=0 events=23 ws=11694 tools=command_execution:12,agent_message:9
+run_54ce40faf121 att_a5c6bd16adba blade-agent interrupted None err=blade_session_waiting_for_input trace=5 events=23 ws=0 tools=Read:3,Bash:1,AskUserQuestion:1
+run_5d0e22a74304 att_bfb6b62c16af claude-code gave_up 40 err=None trace=0 events=6835 ws=153 tools=WebSearch:1
+run_5d0e22a74304 att_022856e4820b codex gave_up 40 err=None trace=0 events=169 ws=52 tools=command_execution:144,agent_message:18,todo_list:4
+run_5d0e22a74304 att_0718b4ec6203 blade-agent gave_up 40 err=agent_total_timeout trace=53 events=389 ws=18 tools=Bash:12,Read:5,update_plan:4,WebSearch:4,WebFetch:3,Write:18,Edit:7
+run_ba330171bf70 att_fbe182700ea8 claude-code completed 85 err=timeout after 900s trace=0 events=6528 ws=306 tools=TaskOutput:1
+run_ba330171bf70 att_804d2fe0123e codex completed 85 err=agent_timeout trace=0 events=59 ws=1202 tools=command_execution:51,agent_message:6
+run_ba330171bf70 att_026094a2dbab blade-agent timeout None err=execution_deadline_exceeded trace=18 events=317 ws=0 tools=Bash:12,update_plan:2,Write:4
+run_bc5ec06fc3e9 att_867b899b71ef claude-code gave_up 40 err=None trace=0 events=4498 ws=19 tools=
+run_bc5ec06fc3e9 att_c21abe764a87 codex gave_up 15 err=agent_timeout trace=0 events=157 ws=2 tools=command_execution:128,agent_message:26,todo_list:1
+run_bc5ec06fc3e9 att_a62f69bfe929 blade-agent gave_up 40 err=agent_total_timeout trace=39 events=346 ws=17 tools=Bash:19,Read:2,update_plan:2,Write:16
+run_cbe25544294f att_c9833760598e claude-code gave_up 8 err=timeout after 900s trace=0 events=1044 ws=2 tools=
+run_cbe25544294f att_9f6e45475ebf codex gave_up 40 err=None trace=0 events=204 ws=383 tools=command_execution:180,agent_message:17,todo_list:4
+run_cbe25544294f att_73de886594fb blade-agent completed 100 err=agent_total_timeout trace=49 events=435 ws=19 tools=Bash:22,Read:4,update_plan:5,Write:18
+run_ccb2ddcca06a att_f165331ada6d claude-code completed 85 err=timeout after 900s trace=0 events=2978 ws=1180 tools=Bash:13
+run_ccb2ddcca06a att_7a301288c057 codex gave_up 40 err=agent_timeout trace=0 events=39 ws=15458 tools=command_execution:27,agent_message:10
+run_ccb2ddcca06a att_72df3fe6cc37 blade-agent completed 62 err=agent_total_timeout trace=36 events=328 ws=9 tools=Bash:25,update_plan:3,Read:3,Write:3,Edit:2
+run_d5b5b3d3ac41 att_2422942c3a05 claude-code completed 92 err=timeout after 900s trace=0 events=2856 ws=17 tools=Bash:13
+run_d5b5b3d3ac41 att_1968e1d9ad67 codex completed 85 err=agent_timeout trace=0 events=68 ws=307 tools=command_execution:42,agent_message:24
+run_d5b5b3d3ac41 att_08ab011b6365 blade-agent completed 70 err=agent_total_timeout trace=33 events=502 ws=282 tools=Bash:24,update_plan:3,Write:4,Edit:2
+run_f3119981633b att_0dcff76a41a1 claude-code gave_up 40 err=timeout after 900s trace=0 events=9957 ws=21 tools=
+run_f3119981633b att_85d20f573105 codex gave_up 40 err=None trace=0 events=209 ws=33 tools=agent_message:40,command_execution:162,todo_list:4
+run_f3119981633b att_72b0cf3b622b blade-agent gave_up 40 err=agent_total_timeout trace=81 events=508 ws=26 tools=Bash:30,Read:4,update_plan:7,WebSearch:2,WebFetch:4,Write:25,Edit:9

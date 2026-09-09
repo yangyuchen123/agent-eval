@@ -1,0 +1,282 @@
+[
+  {
+    "run_id": "run_4494274cd73a",
+    "task_id": "external-agencybench-code-1-reaction-rate_001",
+    "status": "completed",
+    "attempts": [
+      {
+        "agent": "claude-code",
+        "status": "gave_up",
+        "score_total": 32,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      },
+      {
+        "agent": "codex",
+        "status": "gave_up",
+        "score_total": 32,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      },
+      {
+        "agent": "blade-agent",
+        "status": "gave_up",
+        "score_total": 32,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      }
+    ]
+  },
+  {
+    "run_id": "run_3fef66d7435e",
+    "task_id": "external-agencybench-code-2-repo-review_001",
+    "status": "completed",
+    "attempts": [
+      {
+        "agent": "claude-code",
+        "status": "gave_up",
+        "score_total": 8,
+        "scoring_status": "completed",
+        "execution_status": "completed"
+      },
+      {
+        "agent": "codex",
+        "status": "completed",
+        "score_total": 100,
+        "scoring_status": "completed",
+        "execution_status": "completed"
+      },
+      {
+        "agent": "blade-agent",
+        "status": "gave_up",
+        "score_total": 30,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      }
+    ]
+  },
+  {
+    "run_id": "run_967c548637ff",
+    "task_id": "external-agencybench-code-3-event-generator_001",
+    "status": "completed",
+    "attempts": [
+      {
+        "agent": "claude-code",
+        "status": "gave_up",
+        "score_total": 40,
+        "scoring_status": "completed",
+        "execution_status": "completed"
+      },
+      {
+        "agent": "codex",
+        "status": "gave_up",
+        "score_total": 15,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      },
+      {
+        "agent": "blade-agent",
+        "status": "gave_up",
+        "score_total": 40,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      }
+    ]
+  },
+  {
+    "run_id": "run_9c7adf0a309f",
+    "task_id": "external-agencybench-code-4-graph-algorithm_001",
+    "status": "failed",
+    "attempts": [
+      {
+        "agent": "claude-code",
+        "status": "gave_up",
+        "score_total": 40,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      },
+      {
+        "agent": "codex",
+        "status": "completed",
+        "score_total": 100,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      },
+      {
+        "agent": "blade-agent",
+        "status": "timeout",
+        "score_total": null,
+        "scoring_status": "skipped",
+        "execution_status": "timeout"
+      }
+    ]
+  },
+  {
+    "run_id": "run_79007f0dc2ea",
+    "task_id": "external-agencybench-code-5-deep-research_001",
+    "status": "completed",
+    "attempts": [
+      {
+        "agent": "claude-code",
+        "status": "gave_up",
+        "score_total": 40,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      },
+      {
+        "agent": "codex",
+        "status": "gave_up",
+        "score_total": 40,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      },
+      {
+        "agent": "blade-agent",
+        "status": "gave_up",
+        "score_total": 39,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      }
+    ]
+  },
+  {
+    "run_id": "run_f4d382ebf582",
+    "task_id": "external-devai-51-hidden-messages_001",
+    "status": "failed",
+    "attempts": [
+      {
+        "agent": "claude-code",
+        "status": "cli_error",
+        "score_total": null,
+        "scoring_status": "skipped",
+        "execution_status": "failed"
+      },
+      {
+        "agent": "codex",
+        "status": "cli_error",
+        "score_total": null,
+        "scoring_status": "skipped",
+        "execution_status": "failed"
+      },
+      {
+        "agent": "blade-agent",
+        "status": "completed",
+        "score_total": 92,
+        "scoring_status": "completed",
+        "execution_status": "completed"
+      }
+    ]
+  },
+  {
+    "run_id": "run_bb12590e61ff",
+    "task_id": "external-devai-52-qlora_001",
+    "status": "completed",
+    "attempts": [
+      {
+        "agent": "claude-code",
+        "status": "completed",
+        "score_total": 100,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      },
+      {
+        "agent": "codex",
+        "status": "completed",
+        "score_total": 85,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      },
+      {
+        "agent": "blade-agent",
+        "status": "gave_up",
+        "score_total": 38,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      }
+    ]
+  },
+  {
+    "run_id": "run_692b673660e7",
+    "task_id": "external-devai-53-road-damage_001",
+    "status": "failed",
+    "attempts": [
+      {
+        "agent": "claude-code",
+        "status": "cli_error",
+        "score_total": null,
+        "scoring_status": "skipped",
+        "execution_status": "failed"
+      },
+      {
+        "agent": "codex",
+        "status": "cli_error",
+        "score_total": null,
+        "scoring_status": "skipped",
+        "execution_status": "failed"
+      },
+      {
+        "agent": "blade-agent",
+        "status": "completed",
+        "score_total": 100,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      }
+    ]
+  },
+  {
+    "run_id": "run_f9c32a82acbf",
+    "task_id": "external-devai-54-openai-response-analyzer_001",
+    "status": "completed",
+    "attempts": [
+      {
+        "agent": "claude-code",
+        "status": "gave_up",
+        "score_total": 55,
+        "scoring_status": "completed",
+        "execution_status": "completed"
+      },
+      {
+        "agent": "codex",
+        "status": "gave_up",
+        "score_total": 25,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      },
+      {
+        "agent": "blade-agent",
+        "status": "completed",
+        "score_total": 92,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      }
+    ]
+  },
+  {
+    "run_id": "run_f0b19af169a5",
+    "task_id": "external-devai-55-sqlite-viewer_001",
+    "status": "failed",
+    "attempts": [
+      {
+        "agent": "claude-code",
+        "status": "completed",
+        "score_total": 100,
+        "scoring_status": "completed",
+        "execution_status": "completed"
+      },
+      {
+        "agent": "codex",
+        "status": "completed",
+        "score_total": 88,
+        "scoring_status": "completed",
+        "execution_status": "timeout"
+      },
+      {
+        "agent": "blade-agent",
+        "status": "interrupted",
+        "score_total": null,
+        "scoring_status": "skipped",
+        "execution_status": "failed"
+      }
+    ]
+  }
+]

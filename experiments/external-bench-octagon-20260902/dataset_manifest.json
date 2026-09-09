@@ -1,0 +1,39 @@
+{
+  "schema_version": "external-bench-octagon-slice.v1",
+  "created": "2026-09-02",
+  "dataset": {
+    "DEVAI": [
+      "/home/yang/DEVAI/instances/51_Devin_AI_Software_Engineer_Plants_Secret_Messages_in_Images.json",
+      "/home/yang/DEVAI/instances/52_Devin_AI_Trains_an_AI.json",
+      "/home/yang/DEVAI/instances/53_Devin_Upwork_Side_Hustle.json",
+      "/home/yang/DEVAI/instances/54_Mock_OpenAI_API_Response_Analyzer_App.json",
+      "/home/yang/DEVAI/instances/55_SQLite_Database_Viewer_and_Analyzer_App.json"
+    ],
+    "AgencyBench": [
+      "/home/yang/AgencyBench/AgencyBench-v2/Code/scenario1",
+      "/home/yang/AgencyBench/AgencyBench-v2/Code/scenario2",
+      "/home/yang/AgencyBench/AgencyBench-v2/Code/scenario3",
+      "/home/yang/AgencyBench/AgencyBench-v2/Code/scenario4",
+      "/home/yang/AgencyBench/AgencyBench-v2/Code/scenario5"
+    ]
+  },
+  "selection": {
+    "DEVAI": [
+      51,
+      52,
+      53,
+      54,
+      55
+    ],
+    "AgencyBench": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "task_count": 10,
+  "adaptation": "One source scenario -> one Octagon env/task; original prompts retained and normalized to relative workspace paths.",
+  "scorer": "tools/external_octagon_scorer.py@external-octagon-scorer-v1"
+}
