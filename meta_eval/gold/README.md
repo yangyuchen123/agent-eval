@@ -1,10 +1,9 @@
-# Human Gold Calibration Set
+# 人工 Gold 校准集
 
-This directory is intentionally empty until a human reviews each case. Do not
-copy deterministic scorer outputs or previous LLM judgments into this
-目录并把它们当作 Gold。
+在人工审核每个案例之前，该目录应保持为空。不得将 deterministic scorer 的输出或
+之前的 LLM judgment 复制到这里，并把它们当作 Gold。
 
-每个 JSON 文件应遵循 `agenteval.meta_eval.GoldJudgment` schema，例如：
+每个 JSON 文件都应遵循 `agenteval.meta_eval.GoldJudgment` schema，例如：
 
 ```json
 {
@@ -20,4 +19,4 @@ copy deterministic scorer outputs or previous LLM judgments into this
 }
 ```
 
-没有人工确认的 judgment 不得作为 Gold 使用。
+未经人工确认的 judgment 不得作为 Gold 使用。

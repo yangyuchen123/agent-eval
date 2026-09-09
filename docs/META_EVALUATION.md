@@ -41,11 +41,12 @@ source judge/.venv/bin/activate
 export JUDGE_BASE_URL=https://llm2.yangl.com.cn/v1
 export JUDGE_MODEL=gpt-5.6-luna
 export JUDGE_API_KEY=...
-PYTHONPATH=src:judge/src python tools_run_meta_eval.py
+PYTHONPATH=src:judge/src python archive/2026-08-31/project-history/scripts/tools_run_meta_eval.py
 ```
 
 当前 `agent-octagon` 已提供 352 个带 trace 的真实 attempt、84 个 env、49 个
-同 task 重复组。`tools_build_octagon_calibration.py` 可以生成候选清单，但它
+同 task 重复组。`archive/2026-08-31/project-history/scripts/tools_build_octagon_calibration.py`
+可以生成候选清单，但它
 不会自动生成 Gold；达到第一阶段标准前，仍需要人工从这些真实 attempt 中审阅
 并加入至少 30 个 question-level Gold JSON，同时显式提供 Full-Trace 和 Static
 Retrieval judge 的实际实现/服务配置。
@@ -71,7 +72,8 @@ cp .env.example .env
 ```
 
 `.env` 已加入 `.gitignore`，`.env.example` 会被提交。Judge server 和
-`tools_run_meta_eval.py` 都会自动加载该文件，因此不再需要每次手动
+`archive/2026-08-31/project-history/scripts/tools_run_meta_eval.py` 都会自动加载该文件，
+因此不再需要每次手动
 `export`。
 
 ## 细粒度离散评分锚点

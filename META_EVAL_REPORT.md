@@ -319,7 +319,7 @@ labels must remain human-maintained and must not be inferred from Octagon score.
 Gold reference integrity can be checked with:
 
 ```bash
-python3 tools_validate_failure_gold.py
+python3 archive/2026-08-31/project-history/scripts/tools_validate_failure_gold.py
 ```
 
 The validator checks schema and evidence references only; it does not generate or
