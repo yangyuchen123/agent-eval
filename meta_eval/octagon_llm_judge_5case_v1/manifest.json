@@ -1,0 +1,108 @@
+{
+  "schema_version": "agenteval.fixed_eval_set_with_runtrace.v1",
+  "dataset_id": "octagon_llm_judge_5case_v1",
+  "created_at": "2026-09-02",
+  "owner": "agent-eval",
+  "purpose": "固定五个明确依赖 LLM-as-judge 的 AgentOctagon environment task，用于 AgentEval 与 octagon-evals 的 judge accuracy/stability 对照。",
+  "selection_policy": {
+    "requirements": [
+      "meta.yaml prerequisites.level=judge",
+      "explicit LLM judge dimension",
+      "local rubric/reference available",
+      "historical completed attempt where possible",
+      "cross-domain diversity"
+    ],
+    "not_random": true,
+    "no_selection_after_future_scores": true,
+    "historical_data_used_only_for_feasibility": true
+  },
+  "task_n": 5,
+  "tasks_file": "tasks.jsonl",
+  "tasks": [
+    {
+      "env": "gdpval-source-faithfulness-official",
+      "task_id": "gdpval_fall_music_tour_official",
+      "category": "excel_source_faithfulness",
+      "task_snapshot_ref": "tasks.jsonl:1",
+      "canonical_attempt_id": "att_ab1b80b58d77",
+      "runtrace_ref": "tasks.jsonl:1.runtrace"
+    },
+    {
+      "env": "presentbench-academia-official",
+      "task_id": "presentbench_academia_official",
+      "category": "academic_presentation",
+      "task_snapshot_ref": "tasks.jsonl:2",
+      "canonical_attempt_id": "att_77ebec65fcd5",
+      "runtrace_ref": "tasks.jsonl:2.runtrace"
+    },
+    {
+      "env": "presentbench-advertising-official",
+      "task_id": "presentbench_advertising_official",
+      "category": "advertising_presentation",
+      "task_snapshot_ref": "tasks.jsonl:3",
+      "canonical_attempt_id": "att_da57c5a292c0",
+      "runtrace_ref": "tasks.jsonl:3.runtrace"
+    },
+    {
+      "env": "user-programming-scenario-visitor-appointment",
+      "task_id": "user_programming_scenario_visitor_appointment_001",
+      "category": "web_workflow",
+      "task_snapshot_ref": "tasks.jsonl:4",
+      "canonical_attempt_id": "att_5e55914f1b4b",
+      "runtrace_ref": "tasks.jsonl:4.runtrace"
+    },
+    {
+      "env": "user-programming-scenario-weather-forecast",
+      "task_id": "user_programming_scenario_weather_forecast_001",
+      "category": "web_ui_browser_evidence",
+      "task_snapshot_ref": "tasks.jsonl:5",
+      "canonical_attempt_id": "att_bbe437112fab",
+      "runtrace_ref": "tasks.jsonl:5.runtrace"
+    }
+  ],
+  "gold_policy": {
+    "status": "not_provided",
+    "rule": "environment Judge/scorer outputs are not correctness Gold; correctness requires independent human-reviewed Gold."
+  },
+  "replay_policy": {
+    "read_only_inputs": true,
+    "verify_sha256_before_run": true,
+    "attempt_selection": "record attempt_id explicitly; never silently choose latest",
+    "judge_repeat_default": 5
+  },
+  "runtrace_policy": {
+    "included": true,
+    "trace_contract": "primary semantic runtrace is trace.jsonl, trajectory.json and/or conversation.jsonl; wire.jsonl is supporting normalized runtime transport. Raw events.jsonl is retained by reference only and excluded from primary Judge input unless a separate experiment declares it.",
+    "canonical_attempt_required": true,
+    "canonical_attempt_selection": "preselected completed attempt with no execution/scoring error; capture-only defects are filtered, not silently treated as agent failures.",
+    "system_failure_exclusion": {
+      "excluded_layers": [
+        "system",
+        "infrastructure",
+        "transport",
+        "capture",
+        "evaluator"
+      ],
+      "excluded_signals": [
+        "local_process_lost_on_restart",
+        "auth_failed",
+        "transport_disconnected",
+        "runtime_unavailable",
+        "environment_bootstrap_failure",
+        "capture parser errors",
+        "wire parse errors",
+        "judge/scorer timeout or service failure",
+        "dependency installation performed by evaluator/bootstrap rather than agent task action"
+      ],
+      "not_excluded": [
+        "agent-visible command/tool failure",
+        "agent retry/recovery behavior",
+        "incorrect product output",
+        "failed business validation",
+        "agent gave_up or timeout when execution itself was healthy"
+      ],
+      "decision": "if a case has only system_failure evidence, mark case_system_invalid and remove it from accuracy denominator; if task evidence remains valid, filter only system records and keep the case."
+    },
+    "task_n": 5
+  }
+}

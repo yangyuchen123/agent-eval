@@ -1,0 +1,67 @@
+{
+  "schema_version": "octagon-wire-manifest-v1",
+  "attempt_id": "att_ab1b80b58d77",
+  "generation": 1,
+  "status": "complete",
+  "strict": false,
+  "policy": {
+    "requested": "parsed",
+    "effective": "parsed",
+    "downgrade_reason": null
+  },
+  "phase_attribution": "explicit",
+  "sources": [
+    {
+      "kind": "capture-events",
+      "instance": "capture-events",
+      "status": "complete",
+      "capabilities": {},
+      "records": 4,
+      "dropped": 0,
+      "parse_errors": 0,
+      "errors": 0,
+      "counters": {},
+      "truncated_tail": false,
+      "failure_reason": null
+    },
+    {
+      "kind": "env-inbound",
+      "instance": "env-inbound",
+      "status": "complete",
+      "capabilities": {},
+      "records": 0,
+      "dropped": 0,
+      "parse_errors": 0,
+      "errors": 0,
+      "counters": {},
+      "truncated_tail": false,
+      "failure_reason": null
+    }
+  ],
+  "coverage": {
+    "agent_semantics": "not-observed",
+    "llm_transport": "not-observed",
+    "mcp": "not-observed",
+    "blade_hops": "not-applicable",
+    "correlated_calls": 0,
+    "unmatched_calls": 0
+  },
+  "totals": {
+    "records": 4,
+    "logical_calls": 0,
+    "hops": 0,
+    "blobs": 0,
+    "bytes": 0,
+    "conflicts": 0
+  },
+  "aggregates": [],
+  "compaction_hints": [],
+  "gaps": [],
+  "started_at": "2026-07-16T08:32:58.227Z",
+  "finished_at": "2026-07-16T08:40:19.145Z",
+  "wire_file": {
+    "bytes": 2868,
+    "sha256": "ad36d3a8afd8ee98f97ba5e03c5461171a81e9fa9edd5562be8fa543a6b4734a",
+    "records": 4
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "schema_version": "octagon-wire-manifest-v1",
+  "attempt_id": "att_bbe437112fab",
+  "generation": 1,
+  "status": "complete",
+  "strict": false,
+  "policy": {
+    "requested": "metadata",
+    "effective": "metadata",
+    "downgrade_reason": null
+  },
+  "phase_attribution": "explicit",
+  "sources": [
+    {
+      "kind": "capture-events",
+      "instance": "capture-events",
+      "status": "complete",
+      "capabilities": {},
+      "records": 4,
+      "dropped": 0,
+      "parse_errors": 0,
+      "errors": 0,
+      "counters": {},
+      "truncated_tail": false,
+      "failure_reason": null
+    },
+    {
+      "kind": "env-inbound",
+      "instance": "env-inbound",
+      "status": "complete",
+      "capabilities": {},
+      "records": 0,
+      "dropped": 0,
+      "parse_errors": 0,
+      "errors": 0,
+      "counters": {},
+      "truncated_tail": false,
+      "failure_reason": null
+    },
+    {
+      "kind": "native-event",
+      "instance": "native-event",
+      "status": "complete",
+      "capabilities": {
+        "call_boundary": true
+      },
+      "records": 15,
+      "dropped": 0,
+      "parse_errors": 0,
+      "errors": 0,
+      "counters": {},
+      "truncated_tail": false,
+      "failure_reason": null
+    }
+  ],
+  "coverage": {
+    "agent_semantics": "complete",
+    "llm_transport": "not-observed",
+    "mcp": "not-observed",
+    "blade_hops": "not-applicable",
+    "correlated_calls": 14,
+    "unmatched_calls": 0
+  },
+  "totals": {
+    "records": 18,
+    "logical_calls": 14,
+    "hops": 0,
+    "blobs": 0,
+    "bytes": 0,
+    "conflicts": 0
+  },
+  "aggregates": [
+    {
+      "evidence_id": "we_651e67f7ccb45fd5b55ca452302258d2",
+      "scope": "adapter",
+      "usage": {
+        "input_tokens": 208150,
+        "output_tokens": 5468,
+        "cache_read_tokens": null,
+        "cache_write_tokens": null,
+        "reasoning_tokens": null,
+        "estimated": null
+      },
+      "producer_event_type": "adapter_result"
+    }
+  ],
+  "compaction_hints": [],
+  "gaps": [],
+  "started_at": "2026-07-28T09:13:22.897Z",
+  "finished_at": "2026-07-28T09:25:49.632Z",
+  "wire_file": {
+    "bytes": 22353,
+    "sha256": "40eb15d006984204894745dfc9f12901f4591f3003851f9db76fe079729cea85",
+    "records": 18
+  }
+}

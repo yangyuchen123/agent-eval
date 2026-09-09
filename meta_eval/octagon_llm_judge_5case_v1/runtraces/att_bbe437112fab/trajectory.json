@@ -1,0 +1,766 @@
+{
+  "schema_version": "octagon-trajectory-v1",
+  "attempt_id": "att_bbe437112fab",
+  "steps": [
+    {
+      "step_id": "ts_8ea63d8f164d5a5388f40461b5d40a2b",
+      "sequence": 1,
+      "timestamp": "2026-07-28T09:13:30.524Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "assistant",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 71
+        }
+      ],
+      "tool_call_id": null,
+      "tool_name": null,
+      "logical_call_id": "lc_2d2ac005d35f5b519754684250115c46",
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_3a42481bb015572286ab0cd49b037232",
+      "sequence": 2,
+      "timestamp": "2026-07-28T09:13:30.524Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_call",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 71
+        }
+      ],
+      "tool_call_id": "call_fCg1pziswgq1v561w168V3SS",
+      "tool_name": "Read",
+      "logical_call_id": "lc_2d2ac005d35f5b519754684250115c46",
+      "content_hash": "0dd2b6a1e0e7ec266769a69286c76ff1fb02e6a462fa06f0910f4bb25b72922f",
+      "content_bytes": 312
+    },
+    {
+      "step_id": "ts_713af6360dbb52589301a2e88aa0d49d",
+      "sequence": 3,
+      "timestamp": "2026-07-28T09:13:31.170Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_result",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 72
+        }
+      ],
+      "tool_call_id": "call_fCg1pziswgq1v561w168V3SS",
+      "tool_name": null,
+      "logical_call_id": null,
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_db1e4a12c5745857867e5a06970d20fc",
+      "sequence": 4,
+      "timestamp": "2026-07-28T09:13:35.213Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "assistant",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 168
+        }
+      ],
+      "tool_call_id": null,
+      "tool_name": null,
+      "logical_call_id": "lc_78878c106a9f56e3977f99e77c144e31",
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_dc4f606dfc395054aee49ec9b1098e77",
+      "sequence": 5,
+      "timestamp": "2026-07-28T09:13:35.213Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_call",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 168
+        }
+      ],
+      "tool_call_id": "call_4gAGOMRpuhrOl3OG2N7Wlil5",
+      "tool_name": "Read",
+      "logical_call_id": "lc_78878c106a9f56e3977f99e77c144e31",
+      "content_hash": "038dd99c29057c871a7c70e9c88b0a65c0c21b2c4ddb4428587392ea29daf968",
+      "content_bytes": 370
+    },
+    {
+      "step_id": "ts_f0e54c38a0295ae3b37ede24b98f6b8e",
+      "sequence": 6,
+      "timestamp": "2026-07-28T09:13:35.420Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_result",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 169
+        }
+      ],
+      "tool_call_id": "call_4gAGOMRpuhrOl3OG2N7Wlil5",
+      "tool_name": null,
+      "logical_call_id": null,
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_7b726a16c1b7521a926792f7b853931b",
+      "sequence": 7,
+      "timestamp": "2026-07-28T09:13:50.558Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "assistant",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 1700
+        }
+      ],
+      "tool_call_id": null,
+      "tool_name": null,
+      "logical_call_id": "lc_f23f98f2eb62582b8aa86585082da0e6",
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_5359d2a2dbb65116960bcf49faaaf638",
+      "sequence": 8,
+      "timestamp": "2026-07-28T09:13:50.558Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_call",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 1700
+        }
+      ],
+      "tool_call_id": "call_ZPQyJd4elKxZ8zWzl34rUflu",
+      "tool_name": "Write",
+      "logical_call_id": "lc_f23f98f2eb62582b8aa86585082da0e6",
+      "content_hash": "422c0679fb8248e78a32122c4ba3456bff674677ec9dcc63d0ac413a0b738294",
+      "content_bytes": 5201
+    },
+    {
+      "step_id": "ts_cb4499d7f84d54e0b8ce9eff864ff403",
+      "sequence": 9,
+      "timestamp": "2026-07-28T09:13:50.558Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_result",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 1701
+        }
+      ],
+      "tool_call_id": "call_ZPQyJd4elKxZ8zWzl34rUflu",
+      "tool_name": null,
+      "logical_call_id": null,
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_6422062691cb52359476d0cb71e810a7",
+      "sequence": 10,
+      "timestamp": "2026-07-28T09:14:02.479Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "assistant",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 3497
+        }
+      ],
+      "tool_call_id": null,
+      "tool_name": null,
+      "logical_call_id": "lc_3a9ae5c222635fd5bb1235a4c15d1057",
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_c0df6ddb69cb5ab5a9c485f38095f6f7",
+      "sequence": 11,
+      "timestamp": "2026-07-28T09:14:02.479Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_call",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 3497
+        }
+      ],
+      "tool_call_id": "call_two9S8CdirLKRUdLQTeFr1sP",
+      "tool_name": "Write",
+      "logical_call_id": "lc_3a9ae5c222635fd5bb1235a4c15d1057",
+      "content_hash": "e760b82c271a8a8ae2dfbeaaa4b7fb3ef1b9334e99983374ee2da8f48e0c7174",
+      "content_bytes": 5599
+    },
+    {
+      "step_id": "ts_13f5f1ef0e3e57e1b64cc47aecb81e1d",
+      "sequence": 12,
+      "timestamp": "2026-07-28T09:14:02.777Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_result",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 3498
+        }
+      ],
+      "tool_call_id": "call_two9S8CdirLKRUdLQTeFr1sP",
+      "tool_name": null,
+      "logical_call_id": null,
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_a4f29b9285f250d3a7a46ef006ed1b4e",
+      "sequence": 13,
+      "timestamp": "2026-07-28T09:14:09.424Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "assistant",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 3830
+        }
+      ],
+      "tool_call_id": null,
+      "tool_name": null,
+      "logical_call_id": "lc_da5c9bad28a95f61be6efa60b6ee8061",
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_a1a75e3cb2ac5fc284da0defa7a057ca",
+      "sequence": 14,
+      "timestamp": "2026-07-28T09:14:09.424Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_call",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 3830
+        }
+      ],
+      "tool_call_id": "call_NYfvP6rcbjW5tHjtZdRL2tRQ",
+      "tool_name": "Write",
+      "logical_call_id": "lc_da5c9bad28a95f61be6efa60b6ee8061",
+      "content_hash": "0bb8bdc8f7d3a197246b86f35dadd664995b1d362b1636296213bd86d2db8c5e",
+      "content_bytes": 1236
+    },
+    {
+      "step_id": "ts_f01f96d7efcb5e4ba47182f8352236b2",
+      "sequence": 15,
+      "timestamp": "2026-07-28T09:14:09.425Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_result",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 3831
+        }
+      ],
+      "tool_call_id": "call_NYfvP6rcbjW5tHjtZdRL2tRQ",
+      "tool_name": null,
+      "logical_call_id": null,
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_e4d9d79aa7295595abdb03c9c5f58dde",
+      "sequence": 16,
+      "timestamp": "2026-07-28T09:14:15.465Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "assistant",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4148
+        }
+      ],
+      "tool_call_id": null,
+      "tool_name": null,
+      "logical_call_id": "lc_3c1af8840d02583caca64c776c687fea",
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_8dd5019c2808592982c4ed35c4f91d89",
+      "sequence": 17,
+      "timestamp": "2026-07-28T09:14:15.465Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_call",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4148
+        }
+      ],
+      "tool_call_id": "call_2o9aKidGf0R9HblDnSHcQYzf",
+      "tool_name": "Write",
+      "logical_call_id": "lc_3c1af8840d02583caca64c776c687fea",
+      "content_hash": "d67c183e60eec55fe3e11f44461794a7edc47b7c0bda9e3d1b12de4000f39540",
+      "content_bytes": 1192
+    },
+    {
+      "step_id": "ts_266715f89e19594abdba0904fbdf5907",
+      "sequence": 18,
+      "timestamp": "2026-07-28T09:14:15.465Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_result",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4149
+        }
+      ],
+      "tool_call_id": "call_2o9aKidGf0R9HblDnSHcQYzf",
+      "tool_name": null,
+      "logical_call_id": null,
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_c9c7c48729c752c3ac11f467e5dcf3bb",
+      "sequence": 19,
+      "timestamp": "2026-07-28T09:14:21.163Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "assistant",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4236
+        }
+      ],
+      "tool_call_id": null,
+      "tool_name": null,
+      "logical_call_id": "lc_ba81abcf33575bff8816140fb7aff421",
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_e76ef9beced45bb58ccc9c31fdd3ce9e",
+      "sequence": 20,
+      "timestamp": "2026-07-28T09:14:21.163Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_call",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4236
+        }
+      ],
+      "tool_call_id": "call_EzAZT6UIvZym8gw0cvvrxIHQ",
+      "tool_name": "Bash",
+      "logical_call_id": "lc_ba81abcf33575bff8816140fb7aff421",
+      "content_hash": "383c6742044f3eca1280a9f7c987edbe1058a5902623200b214f037d03824558",
+      "content_bytes": 349
+    },
+    {
+      "step_id": "ts_611d156714985d79820f40cb35c936ef",
+      "sequence": 21,
+      "timestamp": "2026-07-28T09:14:21.381Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_result",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4241
+        }
+      ],
+      "tool_call_id": "call_EzAZT6UIvZym8gw0cvvrxIHQ",
+      "tool_name": null,
+      "logical_call_id": null,
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_3a30b9c1643b5c1fb5e2b863eb1b1d60",
+      "sequence": 22,
+      "timestamp": "2026-07-28T09:14:29.253Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "assistant",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4682
+        }
+      ],
+      "tool_call_id": null,
+      "tool_name": null,
+      "logical_call_id": "lc_68921a84e2ac53bbb9429347b178d68e",
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_18f90211d6df587d87738984b18cc2a2",
+      "sequence": 23,
+      "timestamp": "2026-07-28T09:14:29.253Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_call",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4682
+        }
+      ],
+      "tool_call_id": "call_TH2gLwTMnzzCxL2hmlQRJPFo",
+      "tool_name": "Edit",
+      "logical_call_id": "lc_68921a84e2ac53bbb9429347b178d68e",
+      "content_hash": "21bca6145ed667109c072c9c3914a5e3a2fbfdeee9dd332e7546a407882834a0",
+      "content_bytes": 1437
+    },
+    {
+      "step_id": "ts_3e73b12936f05fd484f621be809b7254",
+      "sequence": 24,
+      "timestamp": "2026-07-28T09:14:29.589Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_result",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4683
+        }
+      ],
+      "tool_call_id": "call_TH2gLwTMnzzCxL2hmlQRJPFo",
+      "tool_name": null,
+      "logical_call_id": null,
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_71ce58b97de15e15b674b86989968ab4",
+      "sequence": 25,
+      "timestamp": "2026-07-28T09:14:36.636Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "assistant",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4756
+        }
+      ],
+      "tool_call_id": null,
+      "tool_name": null,
+      "logical_call_id": "lc_4de293dd6af452879f285979c9f77e4d",
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_654ac82fbcbc57939ee763268b3079f3",
+      "sequence": 26,
+      "timestamp": "2026-07-28T09:14:36.636Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_call",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4756
+        }
+      ],
+      "tool_call_id": "call_wedjypGwccaknTAbYyQ3wbLL",
+      "tool_name": "Bash",
+      "logical_call_id": "lc_4de293dd6af452879f285979c9f77e4d",
+      "content_hash": "ddb681d2cd3022d542ebc4db4bec9e9cc5d3df2b6299fd3613d57f76c578b989",
+      "content_bytes": 289
+    },
+    {
+      "step_id": "ts_c9821151165a5a3dbd62c9a23ae2f2c3",
+      "sequence": 27,
+      "timestamp": "2026-07-28T09:14:36.859Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_result",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4762
+        }
+      ],
+      "tool_call_id": "call_wedjypGwccaknTAbYyQ3wbLL",
+      "tool_name": null,
+      "logical_call_id": null,
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_40e66debff8158fb856dd5af98a97c14",
+      "sequence": 28,
+      "timestamp": "2026-07-28T09:14:40.704Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "assistant",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4825
+        }
+      ],
+      "tool_call_id": null,
+      "tool_name": null,
+      "logical_call_id": "lc_48ead69e706553719589f8dadeb4852a",
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_d0836d7685985ac980100bfa1b89cbaf",
+      "sequence": 29,
+      "timestamp": "2026-07-28T09:14:40.704Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_call",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4825
+        }
+      ],
+      "tool_call_id": "call_Jk7zzrPexhL196xeWRBKQCKw",
+      "tool_name": "BgBash",
+      "logical_call_id": "lc_48ead69e706553719589f8dadeb4852a",
+      "content_hash": "4ebd0899bd1ec4f19d79c98a3595db721f9bb3784e739960a0252c1df03b45e7",
+      "content_bytes": 272
+    },
+    {
+      "step_id": "ts_3fdc6e8d0fcb5c4886c58d5aa23a6c36",
+      "sequence": 30,
+      "timestamp": "2026-07-28T09:14:40.705Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_result",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4827
+        }
+      ],
+      "tool_call_id": "call_Jk7zzrPexhL196xeWRBKQCKw",
+      "tool_name": null,
+      "logical_call_id": null,
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_b15fd58053b05149bdea888cbdba5745",
+      "sequence": 31,
+      "timestamp": "2026-07-28T09:14:44.185Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "assistant",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4888
+        }
+      ],
+      "tool_call_id": null,
+      "tool_name": null,
+      "logical_call_id": "lc_e553d70f79955257aa1c8ff360d19b64",
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_b726d18a02795965a00e9f92f9692f3b",
+      "sequence": 32,
+      "timestamp": "2026-07-28T09:14:44.185Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_call",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4888
+        }
+      ],
+      "tool_call_id": "call_WxLtqBnQJUWZqjSt7icRqfB3",
+      "tool_name": "Read",
+      "logical_call_id": "lc_e553d70f79955257aa1c8ff360d19b64",
+      "content_hash": "eb12aac27efc2f0b05ef75574ec5709ae4f8f63ba0693b9eae1f626d5251ff00",
+      "content_bytes": 272
+    },
+    {
+      "step_id": "ts_d51bb6b54b835dde94b45a893b0b9c57",
+      "sequence": 33,
+      "timestamp": "2026-07-28T09:14:44.185Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_result",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4889
+        }
+      ],
+      "tool_call_id": "call_WxLtqBnQJUWZqjSt7icRqfB3",
+      "tool_name": null,
+      "logical_call_id": null,
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_ee577003ffef5d4db936f8d97e35d107",
+      "sequence": 34,
+      "timestamp": "2026-07-28T09:14:50.419Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "assistant",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4966
+        }
+      ],
+      "tool_call_id": null,
+      "tool_name": null,
+      "logical_call_id": "lc_c53b832fc1365e84b65f3263e3068216",
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_de5dafdd37d951ecb6bea2e02840e311",
+      "sequence": 35,
+      "timestamp": "2026-07-28T09:14:50.419Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_call",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4966
+        }
+      ],
+      "tool_call_id": "call_VxpvtqtrWXMODmLSh84Kju9J",
+      "tool_name": "Bash",
+      "logical_call_id": "lc_c53b832fc1365e84b65f3263e3068216",
+      "content_hash": "1c211306f503ee21f817e34e4a5f02715f653054a03e094e16fb5cc55208f6e1",
+      "content_bytes": 323
+    },
+    {
+      "step_id": "ts_d301483b465c587c81ad837a55d2bbfe",
+      "sequence": 36,
+      "timestamp": "2026-07-28T09:14:50.420Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_result",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 4968
+        }
+      ],
+      "tool_call_id": "call_VxpvtqtrWXMODmLSh84Kju9J",
+      "tool_name": null,
+      "logical_call_id": null,
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_ef5ed860e0df5822a110928ac7b352c6",
+      "sequence": 37,
+      "timestamp": "2026-07-28T09:14:55.326Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "assistant",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 5103
+        }
+      ],
+      "tool_call_id": null,
+      "tool_name": null,
+      "logical_call_id": "lc_b326326820d251cfaaee4cdd0da071ef",
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_f01b0a69c5ca5a83b6860b0d3a3d039e",
+      "sequence": 38,
+      "timestamp": "2026-07-28T09:14:55.326Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_call",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 5103
+        }
+      ],
+      "tool_call_id": "call_oxojnR6gFRVTCmoxwBnmjFuQ",
+      "tool_name": "Bash",
+      "logical_call_id": "lc_b326326820d251cfaaee4cdd0da071ef",
+      "content_hash": "52cab058703d48717dd23b9bb042e2c0598c4d35c80fce52f4b17d7d28acced0",
+      "content_bytes": 509
+    },
+    {
+      "step_id": "ts_5a52fed7b386521d9b6ea8719e45f91b",
+      "sequence": 39,
+      "timestamp": "2026-07-28T09:14:58.833Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "tool_result",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 5106
+        }
+      ],
+      "tool_call_id": "call_oxojnR6gFRVTCmoxwBnmjFuQ",
+      "tool_name": null,
+      "logical_call_id": null,
+      "content_hash": null,
+      "content_bytes": null
+    },
+    {
+      "step_id": "ts_2d31957d9c395905b824decbb9147d71",
+      "sequence": 40,
+      "timestamp": "2026-07-28T09:15:03.614Z",
+      "agent_id": "main",
+      "parent_agent_id": null,
+      "kind": "assistant",
+      "producer_event_refs": [
+        {
+          "file": "events.jsonl",
+          "line": 5377
+        }
+      ],
+      "tool_call_id": null,
+      "tool_name": null,
+      "logical_call_id": "lc_d35b1ce1eba559809a1ef78dc366c5c0",
+      "content_hash": "7b22af7f20004aa280d27cd7a2ba2c15ff9bccfc458ca7e4d073adbca65277e4",
+      "content_bytes": 931
+    }
+  ]
+}
