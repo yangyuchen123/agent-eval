@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -38,6 +39,9 @@ from .rubric_planner import RubricPlanner
 from .planner import Router
 from .protocols import Case
 from .judge import HttpJudgeClient
+from .rubric_generation import (build_global_profile, build_memory, choose_queries,
+                                  generator_prompt, read_jsonl, retrieve,
+                                  validate_generated)
 from .rubrics import Rubric
 from .runtime_judge import score_runtime_samples
 from .report import build_report, evidence_tree_markdown, write_report_artifacts
@@ -337,6 +341,155 @@ def cmd_rubric_instantiate(args: argparse.Namespace) -> int:
     return 0
 
 
+
+def cmd_rubric_generation(args: argparse.Namespace) -> int:
+    """Freeze RuVer human-rubric memory or create a retrieval review packet."""
+    from .rubric_generation import digest
+
+    dataset = Path(args.dataset)
+    labels = Path(args.labels)
+    output = Path(args.out)
+    output.mkdir(parents=True, exist_ok=True)
+    cases = read_jsonl(dataset)
+    memory_path = output / "rubric_memory.jsonl"
+    if args.phase == "memory":
+        memory = build_memory(dataset, labels, args.source_root)
+        memory_path.write_text("\n".join(json.dumps(x, ensure_ascii=False) for x in memory) + "\n", encoding="utf-8")
+        print(f"[rubric-generation] froze {len(memory)} task-level memory items: {memory_path}")
+        return 0
+
+    if args.phase == "prepare":
+        if not memory_path.is_file():
+            raise SystemExit(f"missing frozen memory: {memory_path}; run --phase memory first")
+        memory = read_jsonl(memory_path)
+        queries = choose_queries(cases, args.query_count, args.seed)
+        heldout = {str(x["instance_id"]) for x in queries}
+        usable_memory = [x for x in memory if str(x["task_id"]) not in heldout]
+        retrieval_file = output / "retrieval_results.jsonl"
+        retrieval_rows = {str(x["query_task_id"]): x for x in (read_jsonl(retrieval_file) if retrieval_file.is_file() else [])}
+        if args.condition == "retrieved_human_rubric" and not heldout.issubset(set(retrieval_rows)):
+            raise SystemExit("retrieved_human_rubric prepare requires retrieval results for exactly the selected query tasks")
+        profile = build_global_profile(usable_memory)
+        (output / "global_rubric_profile.json").write_text(json.dumps(profile, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        rng = __import__("random").Random(args.seed)
+        prompt_rows = []
+        for case in queries:
+            task_id = str(case["instance_id"])
+            if args.condition == "retrieved_human_rubric":
+                demos = []
+                for item in retrieval_rows[task_id]["retrieved"]:
+                    if str(item["retrieved_task_id"]) in heldout:
+                        raise SystemExit(f"leakage detected in retrieved result for {task_id}")
+                    found = next((m for m in usable_memory if str(m["task_id"]) == str(item["retrieved_task_id"])), None)
+                    if found is None:
+                        raise SystemExit(f"retrieved task missing from frozen memory: {item['retrieved_task_id']}")
+                    demos.append(found)
+            elif args.condition == "random_human_rubric":
+                demos = rng.sample(usable_memory, min(args.top_k, len(usable_memory)))
+            else:
+                demos = []
+            messages = generator_prompt(case, args.condition, demos, profile if args.condition == "global_profile" else None, args.generator_prompt_version)
+            prompt_rows.append({"task_id": task_id, "condition": args.condition, "messages": messages, "input_digest": digest(messages), "demonstration_task_ids": [str(x["task_id"]) for x in demos], "excluded_task_ids": sorted(heldout), "generator_called": False})
+        target = output / f"generator_inputs_{args.condition}.jsonl"
+        target.write_text("\n".join(json.dumps(x, ensure_ascii=False) for x in prompt_rows) + "\n", encoding="utf-8")
+        print(f"[rubric-generation] prepared {len(prompt_rows)} prompts: {target}")
+        print("[rubric-generation] no model call was made")
+        return 0
+
+    if args.phase == "generate":
+        if not memory_path.is_file():
+            raise SystemExit(f"missing frozen memory: {memory_path}; run --phase memory first")
+        memory = read_jsonl(memory_path)
+        queries = choose_queries(cases, args.query_count, args.seed)
+        heldout = {str(x["instance_id"]) for x in queries}
+        usable_memory = [x for x in memory if str(x["task_id"]) not in heldout]
+        retrieval_rows = {str(x["query_task_id"]): x for x in (read_jsonl(output / "retrieval_results.jsonl") if (output / "retrieval_results.jsonl").is_file() else [])}
+        if args.condition == "retrieved_human_rubric" and not retrieval_rows:
+            raise SystemExit("retrieval_results.jsonl is required for retrieved_human_rubric")
+        profile = build_global_profile(usable_memory)
+        if args.condition == "global_profile":
+            (output / "global_rubric_profile.json").write_text(json.dumps(profile, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        base_url = args.generator_base_url or os.getenv("JUDGE_BASE_URL")
+        model = args.generator_model or os.getenv("JUDGE_MODEL")
+        api_key = args.generator_api_key or os.getenv("JUDGE_API_KEY")
+        if not base_url or not model:
+            raise SystemExit("generator requires --generator-base-url/--generator-model or JUDGE_BASE_URL/JUDGE_MODEL")
+        backend = LLMBackend(base_url=base_url, model=model, api_key=api_key, temperature=0.0, max_tokens=args.max_tokens, timeout=args.timeout, retries=1, json_mode=True)
+        rows = []
+        for case in queries:
+            task_id = str(case["instance_id"])
+            if args.condition == "retrieved_human_rubric":
+                demos = []
+                for item in retrieval_rows[task_id]["retrieved"]:
+                    found = next((m for m in usable_memory if str(m["task_id"]) == str(item["retrieved_task_id"])), None)
+                    if found:
+                        demos.append(found)
+            elif args.condition == "random_human_rubric":
+                rng = __import__("random").Random(args.seed)
+                demos = rng.sample(usable_memory, min(args.top_k, len(usable_memory)))
+            else:
+                demos = []
+            try:
+                response = backend.infer(generator_prompt(case, args.condition, demos, profile if args.condition == "global_profile" else None, args.generator_prompt_version))
+                parsed = response["parsed"]
+                validation = validate_generated(parsed.get("criteria") if isinstance(parsed, dict) else None, case)
+                rows.append({"task_id": task_id, "condition": args.condition, "generated": parsed, "validation": validation, "provenance": {"model": model, "config_digest": backend.config_digest, "retrieved_task_ids": [x.get("task_id") for x in demos], "excluded_task_ids": sorted(heldout), "response_metadata": response.get("response_metadata", {})}})
+            except Exception as exc:  # noqa: BLE001
+                rows.append({"task_id": task_id, "condition": args.condition, "error": repr(exc), "provenance": {"model": model, "config_digest": backend.config_digest, "excluded_task_ids": sorted(heldout)}})
+            print(f"[rubric-generation] {args.condition} {task_id}")
+        target = output / f"generated_rubrics_{args.condition}.jsonl"
+        target.write_text("\n".join(json.dumps(x, ensure_ascii=False) for x in rows) + "\n", encoding="utf-8")
+        print(f"[rubric-generation] wrote {len(rows)} generated rubric records: {target}")
+        return 0
+
+    if not memory_path.is_file():
+        raise SystemExit(f"missing frozen memory: {memory_path}; run --phase memory first")
+    memory = read_jsonl(memory_path)
+    queries = choose_queries(cases, args.query_count, args.seed)
+    heldout = {str(x["instance_id"]) for x in queries}
+    usable_memory = [x for x in memory if str(x["task_id"]) not in heldout]
+    retrieval_path = output / "retrieval_results.jsonl"
+    review_path = output / "retrieval_quality_review.jsonl"
+    rows = []
+    reviews = []
+    for query in queries:
+        retrieved = retrieve(query, usable_memory, top_k=args.top_k, excluded_task_ids=heldout)
+        rows.append({"query_task_id": query["instance_id"], "retrieved": retrieved})
+        reviews.append({
+            "query_task_id": query["instance_id"],
+            "top_k": [{"retrieved_task_id": x["retrieved_task_id"], "rank": x["rank"], "relevance": None, "notes": ""} for x in retrieved],
+            "useful_at_5": None,
+            "strongly_useful_at_5": None,
+            "mean_relevance": None,
+            "review_status": "pending_manual_review",
+        })
+    retrieval_path.write_text("\n".join(json.dumps(x, ensure_ascii=False) for x in rows) + "\n", encoding="utf-8")
+    review_path.write_text("\n".join(json.dumps(x, ensure_ascii=False) for x in reviews) + "\n", encoding="utf-8")
+    manifest = {
+        "schema_version": "agenteval.rubric_generation_manifest.v1",
+        "experiment_id": args.experiment_id,
+        "phase": "retrieval_quality_gate",
+        "dataset": str(dataset),
+        "labels": str(labels),
+        "query_count": len(queries),
+        "query_task_ids": sorted(heldout),
+        "memory_task_count": len(usable_memory),
+        "excluded_task_ids": sorted(heldout),
+        "top_k": args.top_k,
+        "seed": args.seed,
+        "retrieval_method": "semantic+structured",
+        "memory_digest": digest(memory),
+        "retrieval_digest": digest(rows),
+        "status": "pending_manual_review",
+        "generation_started": False,
+        "downstream_judge_started": False,
+    }
+    (output / "experiment_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"[rubric-generation] wrote {len(queries)} query retrieval packet: {retrieval_path}")
+    print(f"[rubric-generation] manual gate review: {review_path}")
+    print("[rubric-generation] generation and B Judge were not run")
+    return 0
+
 def cmd_analyze(args: argparse.Namespace) -> int:
     """Rubric diagnostics over one or more history files."""
     records = HistoryStore.load_many(args.history)
@@ -458,6 +611,28 @@ def main(argv: list[str] | None = None) -> int:
     p_eval.add_argument("--verbose", action="store_true",
                         help="dump per-case evidence trees")
     p_eval.set_defaults(func=cmd_eval)
+
+    p_rg = sub.add_parser(
+        "rubric-generation",
+        help="freeze RuVer rubric memory or create a retrieval quality-gate packet",
+    )
+    p_rg.add_argument("--phase", choices=["memory", "retrieve", "prepare", "generate"], required=True)
+    p_rg.add_argument("--dataset", required=True, help="RuVer AgenticCoding dataset JSONL")
+    p_rg.add_argument("--labels", required=True, help="RuVer labels JSON")
+    p_rg.add_argument("--out", required=True, help="versioned output directory")
+    p_rg.add_argument("--source-root", default=None, help="RuVerBench repository root for provenance")
+    p_rg.add_argument("--query-count", type=int, default=20)
+    p_rg.add_argument("--top-k", type=int, default=5)
+    p_rg.add_argument("--seed", type=int, default=20260901)
+    p_rg.add_argument("--experiment-id", default="rubric-generation-retrieval-gate-20260901")
+    p_rg.add_argument("--condition", choices=["task_only", "random_human_rubric", "retrieved_human_rubric", "global_profile"], default="task_only")
+    p_rg.add_argument("--generator-base-url", default=None)
+    p_rg.add_argument("--generator-model", default=None)
+    p_rg.add_argument("--generator-api-key", default=None)
+    p_rg.add_argument("--max-tokens", type=int, default=2048)
+    p_rg.add_argument("--timeout", type=float, default=180.0)
+    p_rg.add_argument("--generator-prompt-version", choices=["v1_functional_scope", "v2_ruver_scope_aligned", "v3_human_scope_explicit"], default="v1_functional_scope")
+    p_rg.set_defaults(func=cmd_rubric_generation)
 
     def add_octagon_judge_args(parser):
         parser.add_argument("--judge-base-url", default=None,

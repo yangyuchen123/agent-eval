@@ -31,6 +31,10 @@ from .protocols import (Case, CaseEvidence, Plan, SkillResult, SkillSpec)
 from .rubrics import Rubric, RubricQuestion, RubricStore, ScoreAnchor, criterion_evidence_requirements, rubric_questions
 from .preferences import MetaPrinciple, MetaRubric, PreferenceExample, PreferenceStore
 from .rubric_planner import RubricPlanner, RubricPlannerError
+from .rubric_bugfind import bugfind_prompt
+from .rubric_refiner import inherit_metadata, normalize_result, refiner_prompt
+from .rubric_atomicity_validator import atomicity_validator_prompt, validate_atomicity
+from .rrd_optimizer import CalibrationResponse, OptimizationConfig, RRDRubricOptimizer
 from .planner import LLMRouter, RubricRouter, RuleRouter, validate_plan
 from .runner import RunConfig, RunReport, evaluate_one, run_eval, write_evidence
 from .score import (dataset_summary, simple_mean_case_score,
@@ -68,6 +72,9 @@ __all__ = [
     "migration_report", "render_migration",
     "capability_report", "render_capability_report",
     "LLMRouter", "RubricRouter", "RuleRouter", "validate_plan",
+    "bugfind_prompt", "refiner_prompt", "normalize_result", "inherit_metadata",
+    "atomicity_validator_prompt", "validate_atomicity", "RRDRubricOptimizer",
+    "OptimizationConfig", "CalibrationResponse",
     "RunConfig", "RunReport", "evaluate_one", "run_eval", "write_evidence",
     "dataset_summary", "simple_mean_case_score", "weighted_case_score",
     "score_runtime_samples",
