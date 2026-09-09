@@ -125,3 +125,42 @@ def test_default_evidence_factory_accepts_harbor_artifact_ref_without_trace(tmp_
     manifest = catalog.manifest()
     assert manifest["record_count"] == 1
     assert manifest["sources"] == {"artifacts": 1}
+
+@pytest.mark.anyio
+async def test_http_service_uses_joint_protocol_for_multi_rubric(monkeypatch):
+    monkeypatch.setenv("JUDGE_PROTOCOL", "B")
+    model = TestModel(custom_output_args={
+        "question_judgments": [
+            {"question_id": "q1", "score": 1.0, "confidence": 0.9,
+             "claims": [], "evidence_refs": [], "missing_evidence": [],
+             "contradictions": [], "status": "supported"},
+            {"question_id": "q2", "score": 0.0, "confidence": 0.9,
+             "claims": [], "evidence_refs": [], "missing_evidence": [],
+             "contradictions": [], "status": "unverified"},
+        ],
+        "overall_score": 0.5,
+        "confidence": 0.9,
+        "status": "scored",
+    })
+    app = create_app(model=model, evidence_factory=lambda request: __import__(
+        "agentjudge.evidence", fromlist=["InMemoryEvidenceProvider"]
+    ).InMemoryEvidenceProvider([]))
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/v1/judge/evaluate", json={
+            "schema_version": "agenteval.judge_request.v1",
+            "case": {"case_id": "c1", "task": "x"},
+            "rubric": {"rubric_id": "r1", "questions": [
+                {"id": "q1", "question": "one"},
+                {"id": "q2", "question": "two"},
+            ]},
+            "agent_output": "out",
+        })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["schema_version"] == "agentjudge.joint_judgment.v1"
+    assert body["score"] == 0.5
+    assert body["subscores"] == {"q1": 1.0, "q2": 0.0}
+    assert [j["question_id"] for j in body["question_judgments"]] == ["q1", "q2"]
+    assert body["provenance"]["protocol"] == "B_joint_multi_rubric"
+    assert body["provenance"]["protocol_version"] == "agent-eval.abcd.frozen.v1/B"

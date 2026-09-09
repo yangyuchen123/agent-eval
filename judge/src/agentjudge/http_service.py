@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .catalog import EvidenceCatalog
-from .models import JudgeRequest, QuestionJudgment
-from .service import QuestionJudgeService
+from .models import JudgeRequest, QuestionJudgment, JointQuestionJudgment
+from .service import JointQuestionJudgeService, QuestionJudgeService
 
 
 class JudgeHttpApplication:
@@ -30,11 +30,24 @@ class JudgeHttpApplication:
 
     async def evaluate(self, request: JudgeRequest) -> dict[str, Any]:
         evidence = self.evidence_factory(request)
+        protocol = os.environ.get("JUDGE_PROTOCOL", "B").strip().upper()
+        questions = _rubric_questions(request)
+
+        # Production defaults to B: one task-level call with the complete rubric
+        # and trajectory.  A single-question request remains compatible with the
+        # legacy service, even when the process default is B.
+        if protocol == "B" and len(questions) > 1:
+            service = JointQuestionJudgeService(self.model, evidence)
+            judgment = await service.evaluate(request)
+            return _joint_response(self.model, request, judgment, evidence, service)
+
         service = QuestionJudgeService(self.model, evidence)
         judgment = await service.evaluate(request)
         integrity = validate_judgment(judgment, evidence)
         provenance = {
             "model": _model_name(self.model),
+            "protocol": "single_question",
+            "protocol_version": "agent-eval.abcd.frozen.v1/single-question",
             "trace_ref": request.trace_ref,
             "evidence_manifest": evidence.manifest() if hasattr(evidence, "manifest") else {"record_count": len(getattr(evidence, "records", []))},
             "query_trajectory": service.last_query_trajectory,
@@ -57,6 +70,55 @@ class JudgeHttpApplication:
             "status": status,
             "question_judgment": judgment.model_dump(),
         }
+
+
+def _rubric_questions(request: JudgeRequest) -> list[dict[str, Any]]:
+    rubric = request.rubric
+    if isinstance(rubric, dict):
+        questions = rubric.get("questions") or rubric.get("rubric_questions") or []
+        return [dict(q) for q in questions if isinstance(q, dict)]
+    return [dict(request.rubric_question)] if request.rubric_question else []
+
+
+def _joint_response(model: Any, request: JudgeRequest, judgment: JointQuestionJudgment, evidence: EvidenceCatalog, service: JointQuestionJudgeService | None = None) -> dict[str, Any]:
+    question_judgments = [item.model_dump() for item in judgment.question_judgments]
+    refs = list(dict.fromkeys(ref for item in judgment.question_judgments for ref in item.evidence_refs))
+    integrity_issues: list[str] = []
+    for item in judgment.question_judgments:
+        integrity_issues.extend(validate_judgment(item, evidence)["issues"])
+    integrity = {
+        "issues": list(dict.fromkeys(integrity_issues)),
+        "known_evidence_count": len(getattr(evidence, "records", [])),
+    }
+    status = "incomplete_evidence" if integrity["issues"] else judgment.status
+    return {
+        "schema_version": "agentjudge.joint_judgment.v1",
+        "score": judgment.overall_score,
+        "subscores": {item.question_id: item.score for item in judgment.question_judgments},
+        "reasons": {
+            claim.claim_id: claim.statement
+            for item in judgment.question_judgments
+            for claim in item.claims
+        },
+        "confidence": judgment.confidence,
+        "evidence_refs": refs,
+        "findings": [claim.model_dump() for item in judgment.question_judgments for claim in item.claims],
+        "question_judgments": question_judgments,
+        "provenance": {
+            "model": _model_name(model),
+            "protocol": "B_joint_multi_rubric",
+            "protocol_version": "agent-eval.abcd.frozen.v1/B",
+            "one_shot": not bool((request.metadata or {}).get("enable_joint_tools")),
+            "trace_ref": request.trace_ref,
+            "question_count": len(question_judgments),
+            "evidence_manifest": evidence.manifest() if hasattr(evidence, "manifest") else {"record_count": len(getattr(evidence, "records", []))},
+            "query_trajectory": service.last_query_trajectory if service else [],
+            "token_usage": service.last_usage if service else None,
+            "scoring": service.last_scoring_provenance if service else {"scoring_mode": "joint_multi_rubric"},
+            "integrity": integrity,
+        },
+        "status": status,
+    }
 
 
 def default_evidence_factory(request: JudgeRequest) -> EvidenceCatalog:

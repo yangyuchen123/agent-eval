@@ -91,3 +91,51 @@ def _question_prompt(request: JudgeRequest, question: dict[str, Any]) -> str:
         "deterministic_result": request.deterministic_result,
         "instruction": instruction,
     }, ensure_ascii=False)
+
+class JointQuestionJudgeService:
+    """One LLM call for all rubric questions in a task."""
+
+    def __init__(self, model: Any, evidence: EvidenceProvider):
+        self.model = model
+        self.evidence = evidence
+        self.last_query_trajectory: list[dict[str, Any]] = []
+        self.last_usage: dict[str, Any] | None = None
+        self.last_scoring_provenance: dict[str, Any] = {"scoring_mode": "joint_multi_rubric"}
+
+    async def evaluate(self, request: JudgeRequest):
+        from .agents import JointQuestionJudgeDeps, build_joint_question_agent
+        from .models import JointQuestionJudgment
+        questions = []
+        if isinstance(request.rubric, dict):
+            questions = list(request.rubric.get("questions") or request.rubric.get("rubric_questions") or [])
+        if not questions and request.rubric_question:
+            questions = [request.rubric_question]
+        prompt = json.dumps({
+            "task": request.case.get("task"),
+            "all_rubric_questions": questions,
+            "agent_output": request.agent_output,
+            "trace_ref": request.trace_ref,
+            "artifact_ref": request.artifact_ref,
+            "deterministic_result": request.deterministic_result,
+            "metadata": request.metadata,
+            "instruction": "Judge all questions jointly in one call using only the inlined task, rubric, and agent_output. Do not call tools. Return one result per question and an overall mean.",
+        }, ensure_ascii=False)
+        enable_tools = bool((request.metadata or {}).get("enable_joint_tools"))
+        result = await build_joint_question_agent(self.model, enable_tools=enable_tools).run(
+            prompt, deps=JointQuestionJudgeDeps(questions=questions, evidence=self.evidence))
+        trajectory = getattr(self.evidence, "query_trajectory", None)
+        self.last_query_trajectory = list(trajectory()) if callable(trajectory) else []
+        usage = getattr(result, "usage", None)
+        self.last_usage = dataclasses.asdict(usage) if usage is not None and dataclasses.is_dataclass(usage) else None
+        if self.last_usage and self.last_usage.get("cost") is not None:
+            self.last_usage["cost"] = str(self.last_usage["cost"])
+        usage_obj = self.last_usage or {}
+        self.last_scoring_provenance = {
+            "scoring_mode": "joint_multi_rubric_one_shot",
+            "question_count": len(questions),
+            "overall_score": result.output.overall_score,
+            "enable_joint_tools": enable_tools,
+            "model_requests": usage_obj.get("requests") if isinstance(usage_obj, dict) else None,
+            "tool_calls": usage_obj.get("tool_calls") if isinstance(usage_obj, dict) else None,
+        }
+        return result.output

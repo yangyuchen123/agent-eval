@@ -98,3 +98,47 @@ class FinalJudgment(BaseModel):
     evidence_refs: list[str] = Field(default_factory=list)
     findings: list[dict[str, Any]] = Field(default_factory=list)
     status: Literal["scored", "incomplete_evidence", "incompatible_input_contract", "judge_error"]
+
+class JointQuestionJudgment(BaseModel):
+    """One model call judging all rubric questions for a task."""
+    schema_version: Literal["agentjudge.joint_judgment.v1"] = "agentjudge.joint_judgment.v1"
+    question_judgments: list[QuestionJudgment] = Field(default_factory=list)
+    overall_score: float = Field(ge=0, le=1)
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    status: Literal["scored", "incomplete_evidence", "judge_error"] = "scored"
+
+
+class CompactQuestionJudgment(BaseModel):
+    """One-shot B output: score plus a short reason, no claim/evidence objects."""
+    question_id: str
+    score: float = Field(ge=0, le=1)
+    reason: str = ""
+    status: ClaimStatus = "supported"
+
+
+class CompactJointJudgment(BaseModel):
+    schema_version: Literal["agentjudge.joint_judgment.compact.v1"] = "agentjudge.joint_judgment.compact.v1"
+    question_judgments: list[CompactQuestionJudgment] = Field(default_factory=list)
+    overall_score: float = Field(ge=0, le=1)
+    status: Literal["scored", "incomplete_evidence", "judge_error"] = "scored"
+
+    def to_joint_judgment(self) -> JointQuestionJudgment:
+        rows = [
+            QuestionJudgment(
+                question_id=item.question_id,
+                score=item.score,
+                confidence=1.0,
+                claims=([Claim(claim_id=f"{item.question_id}.r", statement=item.reason, status=item.status)] if item.reason else []),
+                evidence_refs=[],
+                missing_evidence=[],
+                contradictions=[],
+                status=item.status,
+            )
+            for item in self.question_judgments
+        ]
+        return JointQuestionJudgment(
+            question_judgments=rows,
+            overall_score=self.overall_score,
+            confidence=None,
+            status=self.status,
+        )

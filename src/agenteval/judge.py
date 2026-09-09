@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import json
+import os
 import urllib.error
 import urllib.request
 from typing import Any, Mapping, Protocol
@@ -153,8 +154,18 @@ class HttpJudgeClient:
             confidence=result.confidence, evidence_refs=result.evidence_refs,
             findings=result.findings,
             provenance={**result.provenance, "transport": {"url": url, "status": status}},
-            status=result.status,
+            status=result.status, question_judgments=result.question_judgments,
         )
+
+
+    def evaluate_joint(self, request: JudgeRequest) -> JudgeResponse:
+        """Evaluate all rubric questions in one task-level request.
+
+        The server selects the frozen production protocol from its
+        configuration. This transport method is intentionally separate from
+        ``evaluate`` so legacy single-question clients remain compatible.
+        """
+        return self.evaluate(request)
 
 
 class JudgeClientSkill(Skill):
@@ -178,6 +189,73 @@ class JudgeClientSkill(Skill):
         if skill_id:
             self.skill_id = skill_id
         self.role = role
+
+    def _evaluate_joint(self, case: Case, output: str, questions: list[dict[str, Any]]) -> SkillResult:
+        """Production B path: one request containing all rubric questions."""
+        request = JudgeRequest(
+            case=_public_case(case), rubric=self.rubric, agent_output=output,
+            trace_ref=case.context.get("trace_ref") or case.context.get("attempt_ref"),
+            artifact_ref=case.context.get("artifact_ref"),
+            deterministic_result=_deterministic_result(case),
+            metadata={
+                "env_name": case.metadata.get("env_name"),
+                "task_id": case.metadata.get("task_id") or case.case_id,
+                "orchestration": "joint_multi_rubric",
+                "protocol": "B",
+                "question_count": len(questions),
+            },
+        )
+        raw = self.client.evaluate_joint(request)
+        response = raw if isinstance(raw, JudgeResponse) else JudgeResponse.from_dict(raw)
+        question_rows = list(response.question_judgments)
+        if not question_rows:
+            raise JudgeClientError("joint Judge response did not include question_judgments")
+        judgments: list[dict[str, Any]] = []
+        statuses: list[str] = []
+        refs: list[str] = list(response.evidence_refs)
+        provenance = [response.provenance]
+        weighted: list[tuple[float, float]] = []
+        for question in questions:
+            qid = str(question.get("id") or "overall")
+            row = next((dict(x) for x in question_rows if str(x.get("question_id")) == qid), None)
+            if row is None:
+                raise JudgeClientError(f"joint Judge response missing question {qid!r}")
+            qresponse = JudgeResponse.from_dict(row)
+            if qresponse.score is None:
+                raise JudgeClientError(f"joint Judge response missing score for question {qid!r}")
+            _validate_number(qresponse.score, f"question[{qid}].score")
+            anchors = _question_anchor_scores(question)
+            if anchors and not any(abs(qresponse.score - value) <= 1e-9 for value in anchors):
+                raise ValueError(f"question[{qid}].score must select one of the declared anchors {anchors}, got {qresponse.score}")
+            weight = float(question.get("weight", 1.0))
+            if weight > 0:
+                weighted.append((qresponse.score, weight))
+            refs.extend(qresponse.evidence_refs)
+            statuses.append(qresponse.status)
+            judgments.append({"question": dict(question), "response": qresponse.to_dict()})
+        if any(status in {"error", "judge_error"} for status in statuses):
+            status = "error"
+        elif response.status == "incomplete_evidence" or any(status == "incomplete_evidence" for status in statuses):
+            status = "incomplete_evidence"
+        else:
+            status = "ok"
+        score = response.score
+        if score is None and weighted:
+            score = round(sum(value * weight for value, weight in weighted) / sum(weight for _, weight in weighted), 6)
+        rubric_data = self.rubric.to_dict() if isinstance(self.rubric, Rubric) else (dict(self.rubric) if isinstance(self.rubric, Mapping) else {})
+        return SkillResult(
+            skill_id=self.skill_id, status=status, score=score,
+            subscores={str(j["question"].get("id")): j["response"].get("score") for j in judgments},
+            reasons={str(j["question"].get("id")): _question_reason(j["response"]) for j in judgments},
+            evidence={"question_judgments": judgments, "evidence_refs": list(dict.fromkeys(refs)), "rubric": rubric_data},
+            diagnostics={
+                "judge_provenance": provenance, "question_count": len(questions),
+                "question_statuses": statuses, "criterion_routing": {str(q.get("id") or "overall"): {"uses_runtrace": True, "declared": True} for q in questions},
+                "runtrace": {"criteria_using_runtrace": len(questions), "analysis_calls": 1, "declared_criteria": len(questions)},
+                "judge": {"model": str(response.provenance.get("model")) if response.provenance.get("model") else None, "rubric_id": rubric_data.get("rubric_id"), "rubric_version": rubric_data.get("version"), "evaluator_version": "agenteval.joint-multi-rubric-judge.v1"},
+                "protocol": {"name": "B_joint_multi_rubric", "version": "agent-eval.abcd.frozen.v1/B"},
+            },
+        )
 
     def evaluate(self, case: Case, output: str) -> SkillResult:
         question = dict(case.context.get("rubric_question") or {})
@@ -286,6 +364,9 @@ class MultiQuestionJudgeSkill(Skill):
 
     def evaluate(self, case: Case, output: str) -> SkillResult:
         questions = _rubric_questions(self.rubric)
+        if (os.environ.get("AGENTEVAL_JUDGE_PROTOCOL", "B").strip().upper() == "B"
+                and questions and callable(getattr(self.client, "evaluate_joint", None))):
+            return self._evaluate_joint(case, output, questions)
         if not questions:
             questions = [{"id": "overall", "question": "Judge the case against the supplied rubric."}]
         judgments: list[dict[str, Any]] = []

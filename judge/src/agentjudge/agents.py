@@ -117,3 +117,73 @@ def build_question_agent(model: Any) -> Any:
         return [record.model_dump() for record in ctx.deps.evidence.related(evidence_id, relation)]
 
     return agent
+
+@dataclass
+class JointQuestionJudgeDeps:
+    questions: list[dict[str, Any]]
+    evidence: EvidenceProvider
+
+
+def build_joint_question_agent(model: Any, *, enable_tools: bool = False) -> Any:
+    """Build the production B judge: one model call, no evidence-tool loop.
+
+    B consumes the supplied task, rubric, and inlined deliverable/response in a
+    single structured-output call. Retrieval tools belong to protocol A/C, not B.
+    ``enable_tools=True`` is retained only for explicit compatibility tests.
+    """
+    _require_pydantic_ai()
+    from .models import CompactJointJudgment, JointQuestionJudgment
+    output_type = JointQuestionJudgment if enable_tools else CompactJointJudgment
+    agent = Agent(
+        model,
+        deps_type=JointQuestionJudgeDeps,
+        output_type=output_type,
+        system_prompt=(
+            "You are a joint multi-rubric judge. "
+            "Evaluate every supplied rubric question in one pass using only the "
+            "task, rubric, and inlined agent_output/deliverable in the user message. "
+            "Do not search, retrieve, or request additional evidence. "
+            "Return exactly one judgment for every question id. Questions may share "
+            "the same deliverable, but each score must independently follow its own "
+            "anchors. Compute overall_score as the unweighted mean of the question scores."
+        ),
+    )
+
+    @agent.output_validator
+    async def validate_joint(ctx: RunContext[JointQuestionJudgeDeps], output):
+        from .models import CompactJointJudgment, JointQuestionJudgment
+        expected = [str(q.get("id") or "overall") for q in ctx.deps.questions]
+        by_id = {}
+        for judgment in output.question_judgments:
+            by_id.setdefault(str(judgment.question_id), judgment)
+        missing = [qid for qid in expected if qid not in by_id]
+        extra = [qid for qid in by_id if qid not in expected]
+        if missing or extra:
+            raise ModelRetry(f"Return exactly one judgment per question: missing={missing} extra={extra}")
+        ordered = [by_id[qid] for qid in expected]
+        questions_by_id = {str(q.get("id") or "overall"): q for q in ctx.deps.questions}
+        for judgment in ordered:
+            scores = declared_anchor_scores(questions_by_id[str(judgment.question_id)])
+            if scores and not any(abs(judgment.score - score) <= 1e-9 for score in scores):
+                nearest = min(scores, key=lambda score: abs(judgment.score - score))
+                judgment.score = nearest
+        expected_mean = sum(j.score for j in ordered) / len(ordered)
+        output.question_judgments = ordered
+        output.overall_score = expected_mean
+        if isinstance(output, CompactJointJudgment):
+            return output.to_joint_judgment()
+        if isinstance(output, JointQuestionJudgment):
+            return output
+        return output
+
+    if enable_tools:
+        @agent.tool
+        async def search_evidence(ctx: RunContext[JointQuestionJudgeDeps], query: str | None = None, source: str | None = None, event_type: list[str] | None = None, tool_name: str | None = None, agent_id: str | None = None, parent_agent_id: str | None = None, target_agent_id: str | None = None, tool_call_id: str | None = None, message_id: str | None = None, before: str | None = None, after: str | None = None, limit: Annotated[int, Field(ge=1, le=30)] = 12) -> list[dict[str, Any]]:
+            return [r.model_dump() for r in ctx.deps.evidence.search(EvidenceQuery(text=query, source=source, event_type=event_type or [], tool_name=tool_name, agent_id=agent_id, parent_agent_id=parent_agent_id, target_agent_id=target_agent_id, tool_call_id=tool_call_id, message_id=message_id, before=before, after=after, limit=limit))]
+
+        @agent.tool
+        async def get_evidence(ctx: RunContext[JointQuestionJudgeDeps], evidence_id: str) -> dict[str, Any]:
+            record = ctx.deps.evidence.get(evidence_id)
+            return record.model_dump() if record else {"error": "evidence_not_found", "evidence_id": evidence_id}
+
+    return agent

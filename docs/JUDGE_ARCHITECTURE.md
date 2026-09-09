@@ -631,32 +631,28 @@ Judge 第一版不负责：
 
 ## HTTP integration and multi-question orchestration
 
-The standalone Judge exposes one intentionally narrow endpoint:
+The standalone Judge exposes one versioned endpoint:
 
 ```text
 POST /v1/judge/evaluate
 ```
 
-It accepts one `agenteval.judge_request.v1` request and executes exactly one
-fully specified rubric question. The service constructs (or receives through
-an adapter) a runtime-neutral `EvidenceCatalog`, invokes
-`QuestionJudgeService`, and returns the question judgment together with:
+Production is configured with `JUDGE_PROTOCOL=B` and AgentEval with
+`AGENTEVAL_JUDGE_PROTOCOL=B`. When the request contains multiple
+`Rubric.questions`, the HTTP boundary reuses `JointQuestionJudgeService` and
+performs one task-level LLM call over the complete rubric and trajectory. The
+response contains one `question_judgments` entry per criterion plus an
+`overall_score`; provenance records `B_joint_multi_rubric` and
+`agent-eval.abcd.frozen.v1/B`.
 
-- `provenance.query_trajectory`: every generic search/navigation call and the
-  returned evidence ids;
-- `provenance.evidence_manifest`: a compact catalog manifest;
-- `provenance.integrity`: only schema-level checks (resolvable ids and
-  supported claims having references).
+A request containing only one question remains compatible with the legacy
+`QuestionJudgeService` path. This fallback is a transport compatibility rule,
+not a second production protocol. Historical A/B/C/D experiments retain their
+frozen definitions and are not changed by this default.
 
-The service does not plan a rubric, select questions, or aggregate scores.
-`JUDGE_BASE_URL`, `JUDGE_API_KEY`, `JUDGE_MODEL`, and `JUDGE_PORT` configure
-an OpenAI-compatible deployment without putting credentials in source files.
-
-AgentEval's `MultiQuestionJudgeSkill` is the orchestration boundary. It sends
-one HTTP/client request for each `Rubric.questions` item, retains each
-question response, and computes a weighted mean using question weights. The
-individual question responses and their provenance are stored in the skill's
-`evidence.question_judgments` and `diagnostics.judge_provenance`; the report
-index also exposes that provenance. No question-specific evidence retrieval,
-mandatory tool call, investigation-depth score, or handoff proof rule is
-implemented here.
+Both paths construct (or receive through an adapter) a runtime-neutral
+`EvidenceCatalog`. Responses retain evidence and execution provenance,
+including query trajectory, evidence manifest, token usage, scoring mode, and
+schema-level integrity checks. `JUDGE_BASE_URL`, `JUDGE_API_KEY`, `JUDGE_MODEL`,
+`JUDGE_PORT`, and `JUDGE_PROTOCOL` configure the standalone deployment;
+`AGENTEVAL_JUDGE_PROTOCOL` controls the AgentEval client orchestration.
