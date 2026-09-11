@@ -81,6 +81,36 @@ def test_http_judge_client_uses_versioned_request(monkeypatch):
     assert b"agenteval.judge_request.v1" in seen["body"]
 
 
+def test_stub_judge_client_selects_middle_declared_anchor():
+    from agenteval import Case, JudgeRequest, StubJudgeClient, build_judge_client
+
+    question = {
+        "id": "artifact_contract_compliance",
+        "score_anchors": [
+            {"score": 0.0, "description": "no"},
+            {"score": 0.5, "description": "partial"},
+            {"score": 1.0, "description": "yes"},
+        ],
+    }
+    client = StubJudgeClient()
+    response = client.evaluate(JudgeRequest(
+        Case("c", "task"), {"rubric_id": "r"}, "out", rubric_question=question,
+    ))
+    assert response.score == 0.5
+    assert response.status == "scored"
+    assert response.provenance["judge_backend"] == "stub"
+    assert response.evidence_refs == ["stub:question:artifact_contract_compliance"]
+    assert build_judge_client("stub").backend == "stub"
+    http = build_judge_client("http", judge_service_url="http://127.0.0.1:8787")
+    assert http.backend == "http"
+    try:
+        build_judge_client("live")
+    except ValueError as exc:
+        assert "unknown judge backend" in str(exc)
+    else:
+        raise AssertionError("unknown backend must be rejected")
+
+
 def test_judge_client_does_not_send_private_case_context():
     from agenteval import Case, JudgeClientSkill, JudgeResponse
 

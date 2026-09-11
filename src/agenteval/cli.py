@@ -38,10 +38,11 @@ from .preferences import PreferenceStore
 from .rubric_planner import RubricPlanner
 from .planner import Router
 from .protocols import Case
-from .judge import HttpJudgeClient
+from .judge import build_judge_client
 from .rubric_generation import (build_global_profile, build_memory, choose_queries,
                                   generator_prompt, read_jsonl, retrieve,
                                   validate_generated)
+from .adapters.forge_ir import IRRubricProjectionError, project_ir_rubric_file
 from .rubrics import Rubric
 from .runtime_judge import score_runtime_samples
 from .report import build_report, evidence_tree_markdown, write_report_artifacts
@@ -292,15 +293,25 @@ def cmd_harbor_score(args: argparse.Namespace) -> int:
     if not samples:
         raise SystemExit("no matching Harbor trials found")
     rubric = Rubric.from_dict(json.loads(Path(args.rubric).read_text(encoding="utf-8")))
-    client = HttpJudgeClient(
-        args.judge_service_url, endpoint=args.judge_endpoint,
-        api_key=args.judge_api_key, timeout=args.judge_timeout,
-    )
+    backend = (getattr(args, "judge_backend", None) or "http").strip().lower()
+    try:
+        client = build_judge_client(
+            backend,
+            judge_service_url=args.judge_service_url,
+            judge_endpoint=args.judge_endpoint,
+            judge_api_key=args.judge_api_key,
+            judge_timeout=args.judge_timeout,
+        )
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    if backend == "stub":
+        print("[agenteval] WARNING: --judge-backend stub is deterministic transport only; scores are not semantic judgments")
     report, artifacts = score_runtime_samples(
         samples, client=client, rubric=rubric, run_root=args.run_root,
         model_id=args.model_id, plan_root=args.plan_root,
+        judge_backend=backend,
     )
-    print(f"[agenteval] harbor samples={len(samples)}, scored={len(report.evidence)}, failures={len(report.failures)}")
+    print(f"[agenteval] harbor samples={len(samples)}, scored={len(report.evidence)}, failures={len(report.failures)}, judge_backend={backend}")
     for kind, path in artifacts.items():
         print(f"  [{kind}] {path}")
     return 1 if report.failures else 0
@@ -313,6 +324,17 @@ def _planner_backend(args: argparse.Namespace) -> LLMBackend:
         wire_api=args.wire_api, json_mode=True, temperature=0.0,
         extra_body={"reasoning": {"effort": args.reasoning_effort}},
     )
+
+
+def cmd_project_ir_rubric(args: argparse.Namespace) -> int:
+    try:
+        rubric, target = project_ir_rubric_file(args.ir, args.output)
+    except (OSError, json.JSONDecodeError, IRRubricProjectionError, ValueError) as exc:
+        raise SystemExit(f"IR rubric projection failed: {exc}") from exc
+    print(f"[agenteval] projected {rubric.rubric_id}@{rubric.version} ({len(rubric.questions)} questions)")
+    if target is not None:
+        print(f"  [rubric] {target}")
+    return 0
 
 
 def cmd_rubric_induce(args: argparse.Namespace) -> int:
@@ -704,6 +726,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_harbor.add_argument("--trial-root", required=True, help="Harbor trial, job, or jobs root")
     p_harbor.add_argument("--rubric", required=True, help="versioned structured rubric JSON")
+    p_harbor.add_argument(
+        "--judge-backend", default="http", choices=["stub", "http"],
+        help="Judge transport: http (independent Judge service) or stub (deterministic, no network)",
+    )
     p_harbor.add_argument("--judge-service-url", default="http://127.0.0.1:8787")
     p_harbor.add_argument("--judge-endpoint", default="/v1/judge/evaluate")
     p_harbor.add_argument("--judge-api-key", default=None)
@@ -720,6 +746,14 @@ def main(argv: list[str] | None = None) -> int:
         parser.add_argument("--api-key", default=None)
         parser.add_argument("--wire-api", default="chat", choices=["chat", "chat_completions", "responses", "response"])
         parser.add_argument("--reasoning-effort", default="low")
+
+    p_project = sub.add_parser(
+        "project-ir-rubric",
+        help="project a frozen Forge Environment IR rubric into agenteval.rubric.v1",
+    )
+    p_project.add_argument("--ir", required=True, help="frozen environment-ir.json")
+    p_project.add_argument("--output", required=True, help="AgentEval rubric JSON output")
+    p_project.set_defaults(func=cmd_project_ir_rubric)
 
     p_induce = sub.add_parser("rubric-induce", help="infer a meta-rubric from human preference examples")
     p_induce.add_argument("--examples", required=True, help="JSON/JSONL preference examples or directory")

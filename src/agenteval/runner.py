@@ -44,6 +44,7 @@ class RunConfig:
     agent_name: str = "unknown"        # recorded in run manifest
     agent_version: str = ""
     benchmarks: tuple[str, ...] = ()
+    extra_environment: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.run_root = Path(self.run_root)
@@ -323,7 +324,8 @@ def run_eval(
         manifest = build_manifest(
             config.run_id, HistoryStore(config.history_path),
             agent_name=config.agent_name, agent_version=config.agent_version,
-            benchmarks=config.benchmarks)
+            benchmarks=config.benchmarks,
+            extra_environment=config.extra_environment or None)
         write_manifest(config.run_root, manifest)
         report.cache_stats["manifest_written"] = 1
     return report

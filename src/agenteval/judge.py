@@ -97,6 +97,81 @@ class JudgeClient(Protocol):
 class JudgeClientError(RuntimeError):
     """The independent Judge endpoint rejected or could not answer a request."""
 
+class StubJudgeClient:
+    """Deterministic judge: always selects the middle declared anchor.
+
+    Transport-only stub for replay/offline flows; scores are not semantic.
+    """
+
+    backend = "stub"
+
+    def evaluate(self, request: JudgeRequest) -> JudgeResponse:
+        question = dict(request.rubric_question or {})
+        anchors = [a for a in (question.get("score_anchors") or []) if isinstance(a, dict)]
+        score = None
+        if anchors:
+            middle = anchors[len(anchors) // 2]
+            raw = middle.get("score")
+            score = float(raw) if isinstance(raw, (int, float)) else None
+        qid = str(question.get("id") or "overall")
+        return JudgeResponse(
+            score=score,
+            status="scored" if score is not None else "incomplete_evidence",
+            evidence_refs=[f"stub:question:{qid}"],
+            provenance={"judge_backend": "stub", "model": "stub", "protocol": "stub"},
+        )
+
+    def evaluate_joint(self, request: JudgeRequest) -> JudgeResponse:
+        """Joint stub: answer every rubric question with its middle anchor."""
+        rubric = request.rubric
+        if hasattr(rubric, "to_dict"):
+            rubric = rubric.to_dict()
+        questions = []
+        if isinstance(rubric, Mapping):
+            questions = (rubric.get("questions") or rubric.get("criteria") or [])
+        if not questions and request.rubric_question:
+            questions = [request.rubric_question]
+        rows = []
+        for question in questions:
+            if not isinstance(question, dict):
+                continue
+            qid = str(question.get("id") or "overall")
+            anchors = [a for a in (question.get("score_anchors") or []) if isinstance(a, dict)]
+            score = None
+            if anchors:
+                raw = anchors[len(anchors) // 2].get("score")
+                score = float(raw) if isinstance(raw, (int, float)) else None
+            rows.append({
+                "question_id": qid,
+                "score": score,
+                "status": "scored" if score is not None else "incomplete_evidence",
+                "evidence_refs": [f"stub:question:{qid}"],
+                "provenance": {"judge_backend": "stub", "model": "stub", "protocol": "stub"},
+            })
+        scores = [r["score"] for r in rows if r["score"] is not None]
+        return JudgeResponse(
+            score=round(sum(scores) / len(scores), 6) if scores else None,
+            status="scored" if scores else "incomplete_evidence",
+            evidence_refs=[f"stub:question:{r['question_id']}" for r in rows],
+            provenance={"judge_backend": "stub", "model": "stub", "protocol": "stub"},
+            question_judgments=rows,
+        )
+
+
+def build_judge_client(backend: str, *, judge_service_url: str | None = None,
+                       judge_endpoint: str | None = None, judge_api_key: str | None = None,
+                       judge_timeout: float = 90.0) -> JudgeClient:
+    name = (backend or "stub").strip().lower()
+    if name == "stub":
+        return StubJudgeClient()
+    if name == "http":
+        if not judge_service_url:
+            raise ValueError("judge_service_url is required for http backend")
+        return HttpJudgeClient(judge_service_url, endpoint=judge_endpoint or "/v1/judge/evaluate",
+                               api_key=judge_api_key, timeout=judge_timeout)
+    raise ValueError(f"unknown judge backend {backend!r}")
+
+
 
 class HttpJudgeClient:
     """Minimal HTTP transport for the versioned independent Judge contract.
@@ -120,6 +195,7 @@ class HttpJudgeClient:
         self.timeout = timeout
         if not self.base_url:
             raise ValueError("base_url is required")
+        self.backend = "http"
 
     def evaluate(self, request: JudgeRequest) -> JudgeResponse:
         url = self.base_url + self.endpoint
@@ -361,6 +437,73 @@ class MultiQuestionJudgeSkill(Skill):
         if skill_id:
             self.skill_id = skill_id
         self.role = role
+
+    def _evaluate_joint(self, case: Case, output: str, questions: list[dict[str, Any]]) -> SkillResult:
+        """Production B path: one request containing all rubric questions."""
+        request = JudgeRequest(
+            case=_public_case(case), rubric=self.rubric, agent_output=output,
+            trace_ref=case.context.get("trace_ref") or case.context.get("attempt_ref"),
+            artifact_ref=case.context.get("artifact_ref"),
+            deterministic_result=_deterministic_result(case),
+            metadata={
+                "env_name": case.metadata.get("env_name"),
+                "task_id": case.metadata.get("task_id") or case.case_id,
+                "orchestration": "joint_multi_rubric",
+                "protocol": "B",
+                "question_count": len(questions),
+            },
+        )
+        raw = self.client.evaluate_joint(request)
+        response = raw if isinstance(raw, JudgeResponse) else JudgeResponse.from_dict(raw)
+        question_rows = list(response.question_judgments)
+        if not question_rows:
+            raise JudgeClientError("joint Judge response did not include question_judgments")
+        judgments: list[dict[str, Any]] = []
+        statuses: list[str] = []
+        refs: list[str] = list(response.evidence_refs)
+        provenance = [response.provenance]
+        weighted: list[tuple[float, float]] = []
+        for question in questions:
+            qid = str(question.get("id") or "overall")
+            row = next((dict(x) for x in question_rows if str(x.get("question_id")) == qid), None)
+            if row is None:
+                raise JudgeClientError(f"joint Judge response missing question {qid!r}")
+            qresponse = JudgeResponse.from_dict(row)
+            if qresponse.score is None:
+                raise JudgeClientError(f"joint Judge response missing score for question {qid!r}")
+            _validate_number(qresponse.score, f"question[{qid}].score")
+            anchors = _question_anchor_scores(question)
+            if anchors and not any(abs(qresponse.score - value) <= 1e-9 for value in anchors):
+                raise ValueError(f"question[{qid}].score must select one of the declared anchors {anchors}, got {qresponse.score}")
+            weight = float(question.get("weight", 1.0))
+            if weight > 0:
+                weighted.append((qresponse.score, weight))
+            refs.extend(qresponse.evidence_refs)
+            statuses.append(qresponse.status)
+            judgments.append({"question": dict(question), "response": qresponse.to_dict()})
+        if any(status in {"error", "judge_error"} for status in statuses):
+            status = "error"
+        elif response.status == "incomplete_evidence" or any(status == "incomplete_evidence" for status in statuses):
+            status = "incomplete_evidence"
+        else:
+            status = "ok"
+        score = response.score
+        if score is None and weighted:
+            score = round(sum(value * weight for value, weight in weighted) / sum(weight for _, weight in weighted), 6)
+        rubric_data = self.rubric.to_dict() if isinstance(self.rubric, Rubric) else (dict(self.rubric) if isinstance(self.rubric, Mapping) else {})
+        return SkillResult(
+            skill_id=self.skill_id, status=status, score=score,
+            subscores={str(j["question"].get("id")): j["response"].get("score") for j in judgments},
+            reasons={str(j["question"].get("id")): _question_reason(j["response"]) for j in judgments},
+            evidence={"question_judgments": judgments, "evidence_refs": list(dict.fromkeys(refs)), "rubric": rubric_data},
+            diagnostics={
+                "judge_provenance": provenance, "question_count": len(questions),
+                "question_statuses": statuses, "criterion_routing": {str(q.get("id") or "overall"): {"uses_runtrace": True, "declared": True} for q in questions},
+                "runtrace": {"criteria_using_runtrace": len(questions), "analysis_calls": 1, "declared_criteria": len(questions)},
+                "judge": {"model": str(response.provenance.get("model")) if response.provenance.get("model") else None, "rubric_id": rubric_data.get("rubric_id"), "rubric_version": rubric_data.get("version"), "evaluator_version": "agenteval.joint-multi-rubric-judge.v1"},
+                "protocol": {"name": "B_joint_multi_rubric", "version": "agent-eval.abcd.frozen.v1/B"},
+            },
+        )
 
     def evaluate(self, case: Case, output: str) -> SkillResult:
         questions = _rubric_questions(self.rubric)

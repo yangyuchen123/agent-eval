@@ -16,11 +16,13 @@ from .skills.registry import SkillRegistry
 def score_runtime_samples(
     samples: list[EvalSample], *, client: JudgeClient, rubric, run_root: str | Path,
     model_id: str = "independent-judge", plan_root: str | Path | None = None,
+    judge_backend: str = "http",
 ):
     skill = MultiQuestionJudgeSkill(
         client, rubric, skill_id="runtime_multi_question_judge", role="core")
     registry = SkillRegistry()
     registry.register(skill)
+    backend_name = getattr(client, "backend", None) or judge_backend
 
     def route(case, catalog):
         return Plan(
@@ -33,7 +35,7 @@ def score_runtime_samples(
             },),
             skipped_skills=(),
             routing_mode="rule",
-            planner={"backend": "independent-agent-judge"},
+            planner={"backend": "independent-agent-judge", "judge_backend": backend_name},
         )
 
     agent_names = sorted({sample.agent.name for sample in samples})
@@ -44,6 +46,7 @@ def score_runtime_samples(
         agent_name=agent_names[0] if len(agent_names) == 1 else "multiple",
         agent_version=agent_versions[0] if len(agent_versions) == 1 else "",
         benchmarks=tuple(sorted({s.backend for s in samples})),
+        extra_environment={"judge_backend": str(backend_name)},
     )
     cases = [sample.to_case() for sample in samples]
     outputs = {sample.sample_id: sample.output for sample in samples}

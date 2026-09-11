@@ -19,11 +19,14 @@ from .adapters import (AgentIdentity, AgentOctagonAdapter, HarborAdapter,
                        OctagonEnvironmentSkill, OctagonScorerBridge,
                        OctagonScorerError, score_octagon_samples,
                        JsonRuntimeAdapter, RuntimeAdapter, ToolCall)
+from .adapters.forge_ir import IRRubricProjectionError, project_ir_rubric, project_ir_rubric_file
 from .capabilities import Capability, CapabilityStore, DEFAULT_TAXONOMY
 from .history import (EvalRecord, HistoryStore, new_run_id,
                       question_stats, rubric_question_report,
                       summary_by_skill)
-from .judge import HttpJudgeClient, JudgeClient, JudgeClientError, JudgeClientSkill, MultiQuestionJudgeSkill, JudgeRequest, JudgeResponse
+from .judge import (HttpJudgeClient, JudgeClient, JudgeClientError, JudgeClientSkill,
+                       MultiQuestionJudgeSkill, JudgeRequest, JudgeResponse,
+                       StubJudgeClient, build_judge_client)
 from .meta_eval import (EvidenceSnapshot, FailureCode, GoldJudgment, JudgmentObservation, MetaCase, MetaEvalRunner, add_distractors, classify_failure, lengthen, remove, reorder, score_metrics, stability_metrics)
 from .manifest import (EvaluationRun, build_manifest, evaluator_snapshot,
                        load_manifest, write_manifest)
@@ -52,7 +55,9 @@ __all__ = [
     "ConversationTurn", "EvalSample", "OctagonEnvironmentSkill",
     "OctagonScorerBridge", "OctagonScorerError", "score_octagon_samples",
     "JsonRuntimeAdapter", "RuntimeAdapter", "ToolCall",
-    "LLMBackend", "HttpJudgeClient", "MultiQuestionJudgeSkill", "JudgeClient",
+    "IRRubricProjectionError", "project_ir_rubric", "project_ir_rubric_file",
+    "LLMBackend", "HttpJudgeClient", "StubJudgeClient", "build_judge_client",
+    "MultiQuestionJudgeSkill", "JudgeClient",
     "JudgeClientError", "JudgeClientSkill", "JudgeRequest", "JudgeResponse",
     "Rubric", "RubricQuestion", "RubricStore", "PreferenceExample",
     "PreferenceStore", "MetaPrinciple", "MetaRubric", "RubricPlanner",

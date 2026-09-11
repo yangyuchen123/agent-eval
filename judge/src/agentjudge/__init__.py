@@ -24,3 +24,4 @@ from .two_stage import EvidenceCollection, EvidenceItem, TwoStageJointJudgeServi
 from .two_stage import EvidenceThenPerQuestionJudgeService
 
 from .protocols import (JudgeProtocol, ProtocolResult, OriginalIndependentRubricProtocol, JointMultiRubricProtocol, SharedEvidenceJointProtocol, SharedEvidenceIndependentScoreProtocol, build_protocol, protocol_names)
+from .workbook_pi import PROTOCOL_ID as WORKBOOK_PI_PROTOCOL
