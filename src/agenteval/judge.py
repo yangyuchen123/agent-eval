@@ -169,6 +169,18 @@ def build_judge_client(backend: str, *, judge_service_url: str | None = None,
             raise ValueError("judge_service_url is required for http backend")
         return HttpJudgeClient(judge_service_url, endpoint=judge_endpoint or "/v1/judge/evaluate",
                                api_key=judge_api_key, timeout=judge_timeout)
+    if name == "f":
+        # F protocol: headless pi agent as judge, independent from A/B.
+        if not judge_service_url:
+            raise ValueError("judge_service_url is required for f backend")
+        # The CLI default endpoint targets the A/B endpoint; F must not inherit it.
+        endpoint = (
+            "/v1/f-judge/evaluate"
+            if judge_endpoint in (None, "/v1/judge/evaluate")
+            else judge_endpoint
+        )
+        return FJudgeClient(judge_service_url, endpoint=endpoint,
+                            api_key=judge_api_key, timeout=judge_timeout or 600.0)
     raise ValueError(f"unknown judge backend {backend!r}")
 
 
@@ -652,3 +664,83 @@ def _number_or_none(value: Any, name: str) -> float | None:
         raise ValueError(f"{name} must be numeric or null") from exc
     _validate_number(result, name)
     return result
+
+
+class FJudgeClient(HttpJudgeClient):
+    """HTTP transport for the F protocol (pi agent as judge)."""
+
+    backend = "f"
+
+    def __init__(self, base_url: str, *, endpoint: str = "/v1/f-judge/evaluate",
+                 api_key: str | None = None, timeout: float = 600.0) -> None:
+        super().__init__(base_url, endpoint=endpoint, api_key=api_key, timeout=timeout)
+
+
+class FJudgeSkill(Skill):
+    """F protocol skill: headless pi agent as judge.
+
+    Unlike the A/B orchestration, F keeps pi's continuous scores (no discrete
+    anchor coercion) and surfaces pi's own per-question reasons verbatim.
+    """
+
+    skill_id = "f_agent_pi_judge"
+    role = "core"
+    question = "Evaluate all rubric questions by investigating the frozen trial artifacts with the pi agent."
+    evidence_sources = ("artifact", "deterministic", "state", "runtime", "semantic")
+    definition_version = "agenteval.f-pi-judge.v1"
+
+    def __init__(self, client: JudgeClient, rubric: Rubric | Mapping[str, Any] | str,
+                 *, skill_id: str | None = None, role: str = "core") -> None:
+        self.client = client
+        self.rubric = rubric
+        if skill_id:
+            self.skill_id = skill_id
+        self.role = role
+
+    def evaluate(self, case: Case, output: str) -> SkillResult:
+        request = JudgeRequest(
+            case=_public_case(case),
+            rubric=self.rubric,
+            agent_output=output,
+            trace_ref=case.context.get("trace_ref") or case.context.get("attempt_ref"),
+            artifact_ref=case.context.get("artifact_ref"),
+            metadata={
+                "env_name": case.metadata.get("env_name"),
+                "task_id": case.metadata.get("task_id") or case.case_id,
+                "orchestration": "f_pi_agent",
+                "protocol": "F",
+            },
+        )
+        raw = self.client.evaluate_joint(request)
+        response = raw if isinstance(raw, JudgeResponse) else JudgeResponse.from_dict(raw)
+        rows = list(response.question_judgments)
+        subscores: dict[str, float | None] = {}
+        reasons: dict[str, str] = {}
+        statuses: list[str] = []
+        for row in rows:
+            qid = str(row.get("question_id") or "")
+            try:
+                score = float(row["score"]) if row.get("score") is not None else None
+            except (TypeError, ValueError):
+                score = None
+            if qid:
+                subscores[qid] = score
+                reasons[qid] = str(row.get("reason") or "")
+            statuses.append(str(row.get("status") or ""))
+        score = response.score
+        if score is None and subscores:
+            values = [v for v in subscores.values() if v is not None]
+            score = round(sum(values) / len(values), 6) if values else None
+        status = "error" if any(s in {"error", "judge_error"} for s in statuses) else (
+            "incomplete_evidence" if score is None or any(s == "incomplete_evidence" for s in statuses) else "ok"
+        )
+        rubric_data = self.rubric.to_dict() if isinstance(self.rubric, Rubric) else (dict(self.rubric) if isinstance(self.rubric, Mapping) else {})
+        return SkillResult(
+            skill_id=self.skill_id, status=status, score=score,
+            subscores=subscores, reasons=reasons,
+            evidence={"question_judgments": rows, "rubric": rubric_data, "judge": "pi"},
+            diagnostics={
+                "judge_provenance": [response.provenance],
+                "protocol": {"name": "F_agent_pi_judge", "version": "agent-eval.abcd.frozen.v1/F"},
+            },
+        )

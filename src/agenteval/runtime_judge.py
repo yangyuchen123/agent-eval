@@ -18,8 +18,13 @@ def score_runtime_samples(
     model_id: str = "independent-judge", plan_root: str | Path | None = None,
     judge_backend: str = "http",
 ):
-    skill = MultiQuestionJudgeSkill(
-        client, rubric, skill_id="runtime_multi_question_judge", role="core")
+    if (judge_backend or "").strip().lower() == "f":
+        from .judge import FJudgeSkill
+
+        skill = FJudgeSkill(client, rubric, skill_id="runtime_f_pi_judge", role="core")
+    else:
+        skill = MultiQuestionJudgeSkill(
+            client, rubric, skill_id="runtime_multi_question_judge", role="core")
     registry = SkillRegistry()
     registry.register(skill)
     backend_name = getattr(client, "backend", None) or judge_backend

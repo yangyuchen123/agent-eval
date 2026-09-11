@@ -727,7 +727,7 @@ def main(argv: list[str] | None = None) -> int:
     p_harbor.add_argument("--trial-root", required=True, help="Harbor trial, job, or jobs root")
     p_harbor.add_argument("--rubric", required=True, help="versioned structured rubric JSON")
     p_harbor.add_argument(
-        "--judge-backend", default="http", choices=["stub", "http"],
+        "--judge-backend", default="http", choices=["stub", "http", "f"],
         help="Judge transport: http (independent Judge service) or stub (deterministic, no network)",
     )
     p_harbor.add_argument("--judge-service-url", default="http://127.0.0.1:8787")

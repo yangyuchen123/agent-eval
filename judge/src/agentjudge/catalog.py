@@ -9,6 +9,90 @@ from .evidence import EvidenceProvider, _filter_records, _rank_records, _record_
 from .models import EvidenceQuery, EvidenceRecord
 
 
+def _xlsx_sheets(path: Path) -> dict[str, Any]:
+    """Project an .xlsx workbook into bounded sheet grids using only stdlib.
+
+    openpyxl may be unavailable offline; zipfile + ElementTree cover the
+    common OOXML layout (shared strings, workbook rels, per-sheet rows).
+    Formulas are surfaced as ``=...`` strings so the Judge can verify both
+    values and formula structure.
+    """
+    import zipfile
+    import xml.etree.ElementTree as ET
+
+    NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+    R = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+    P = "{http://schemas.openxmlformats.org/package/2006/relationships}"
+    with zipfile.ZipFile(path) as zf:
+        names = set(zf.namelist())
+        if "xl/workbook.xml" not in names:
+            return {}
+        wb = ET.fromstring(zf.read("xl/workbook.xml"))
+        sheet_rids = [
+            (s.get("name") or "", s.get(R + "id"))
+            for s in wb.findall(".//m:sheets/m:sheet", NS)
+        ]
+        rels: dict[str, str] = {}
+        if "xl/_rels/workbook.xml.rels" in names:
+            r = ET.fromstring(zf.read("xl/_rels/workbook.xml.rels"))
+            for rel in r.findall(f"{P}Relationship"):
+                rels[rel.get("Id") or ""] = rel.get("Target") or ""
+        shared: list[str] = []
+        if "xl/sharedStrings.xml" in names:
+            ss = ET.fromstring(zf.read("xl/sharedStrings.xml"))
+            for si in ss.findall("m:si", NS):
+                shared.append("".join(t.text or "" for t in si.iter(f"{{{NS['m']}}}t")))
+        result: dict[str, Any] = {}
+        for name, rid in sheet_rids:
+            target = rels.get(rid or "")
+            if not target:
+                continue
+            part = target if target.startswith("xl/") else "xl/" + target.lstrip("/")
+            part = "/".join(p for p in part.split("/") if p not in {"", ".", ".."})
+            if part not in names:
+                continue
+            sheet = ET.fromstring(zf.read(part))
+            grid: list[Any] = []
+            for row in sheet.findall(".//m:sheetData/m:row", NS):
+                cells: dict[str, Any] = {}
+                for c in row.findall("m:c", NS):
+                    ref = c.get("r") or ""
+                    v = c.find("m:v", NS)
+                    t = c.get("t")
+                    value: Any = v.text if v is not None else None
+                    if t == "s" and value is not None:
+                        try:
+                            value = shared[int(value)]
+                        except (ValueError, IndexError, TypeError):
+                            pass
+                    f = c.find("m:f", NS)
+                    if f is not None:
+                        value = f"={f.text or ''}"
+                    cells[ref] = value
+                if cells:
+                    grid.append(cells)
+                if len(grid) >= 40:
+                    break
+            result[name] = grid
+        return result
+
+
+def _xlsx_projection(path: Path) -> tuple[dict[str, Any], bool]:
+    """(projection, projected_ok) — prefer openpyxl, fall back to stdlib."""
+    try:
+        from openpyxl import load_workbook
+
+        wb = load_workbook(path, read_only=True, data_only=True)
+        sheets = {ws.title: [list(row) for row in ws.iter_rows(values_only=True)] for ws in wb.worksheets}
+        wb.close()
+        return {"workbook_sheets": sheets, "format": "xlsx"}, True
+    except Exception:  # noqa: BLE001
+        try:
+            return {"workbook_sheets": _xlsx_sheets(path), "format": "xlsx"}, True
+        except Exception:  # noqa: BLE001
+            return {}, False
+
+
 class EvidenceCatalog(EvidenceProvider):
     """In-memory, runtime-neutral searchable environment.
 
@@ -47,13 +131,10 @@ class EvidenceCatalog(EvidenceProvider):
                 content: dict[str, Any] = {"file_path": rel, "size_bytes": path.stat().st_size}
                 try:
                     if path.suffix.lower() == ".xlsx":
-                        from openpyxl import load_workbook
-                        wb = load_workbook(path, read_only=True, data_only=True)
-                        sheets = {}
-                        for ws in wb.worksheets:
-                            sheets[ws.title] = [list(row) for row in ws.iter_rows(values_only=True)]
-                        content["workbook_sheets"] = sheets
-                        content["format"] = "xlsx"
+                        projection, ok = _xlsx_projection(path)
+                        content.update(projection)
+                        if not ok:
+                            content["projection_error"] = "xlsx projection failed"
                     else:
                         content["text"] = path.read_text(encoding="utf-8", errors="replace")
                 except Exception as exc:  # preserve artifact presence even if projection fails
@@ -129,15 +210,22 @@ class EvidenceCatalog(EvidenceProvider):
         if artifacts_root.is_dir():
             for path in sorted(p for p in artifacts_root.rglob("*") if p.is_file() and p.name != "manifest.json"):
                 rel = path.relative_to(artifacts_root).as_posix()
+                content: dict[str, Any] = {"file_path": rel, "size_bytes": path.stat().st_size}
                 try:
-                    content = path.read_text(encoding="utf-8", errors="replace")
+                    if path.suffix.lower() == ".xlsx":
+                        projection, ok = _xlsx_projection(path)
+                        content.update(projection)
+                        if not ok:
+                            content["projection_error"] = "xlsx projection failed"
+                    else:
+                        content["text"] = path.read_text(encoding="utf-8", errors="replace")
                 except OSError:
                     continue
                 records.append(EvidenceRecord(
                     evidence_id=f"harbor:artifact:{rel}", source="artifacts",
                     event_type="artifact_file", kind="artifact",
                     evidence_class="artifact_observation", claim_strength="direct",
-                    file_path=rel, content={"text": content},
+                    file_path=rel, content=content,
                 ))
         _attach_relations(records)
         return cls(records)

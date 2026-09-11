@@ -41,9 +41,32 @@ def create_app(*, model: Any | None = None, evidence_factory=None):
     async def health(request: Request):
         return JSONResponse({"status": "ok", "service": "agent-judge"})
 
+    async def f_evaluate(request: Request):
+        """F protocol: pi agent as judge (independent from A/B)."""
+        from .f_judge import f_response, run_pi_judge
+
+        if request.method != "POST":
+            return JSONResponse({"error": "method_not_allowed"}, status_code=405)
+        try:
+            payload = await request.json()
+            judge_request = JudgeRequest.model_validate(payload)
+            pi_payload, session_dir, trace = run_pi_judge(judge_request)
+            if not pi_payload:
+                return JSONResponse({
+                    "error": "judge_error",
+                    "detail": "pi judge returned no parseable JSON",
+                    "pi_trace": trace[-4000:],
+                }, status_code=502)
+            return JSONResponse(f_response(judge_request, pi_payload, session_dir, trace))
+        except ValueError as exc:
+            return JSONResponse({"error": "invalid_request", "detail": str(exc)}, status_code=400)
+        except Exception as exc:  # noqa: BLE001 - preserve HTTP boundary
+            return JSONResponse({"error": "judge_error", "detail": repr(exc)}, status_code=500)
+
     return Starlette(routes=[
         Route("/health", health, methods=["GET"]),
         Route("/v1/judge/evaluate", evaluate, methods=["POST"]),
+        Route("/v1/f-judge/evaluate", f_evaluate, methods=["POST"]),
     ])
 
 
