@@ -169,11 +169,34 @@ def _run_single(request: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _discover_scorer(trial_dir: str, request: dict[str, Any]) -> str | None:
+    """Locate a deterministic scorer.py without the caller passing a path.
+
+    artifact-repo projects Forge-generated scorers beside the Harbor task:
+    ``jobs/<exp>/<job>/tasks/<task>/scorer.py``. Walk up from the trial dir
+    and pick the first tasks/*/scorer.py. An explicit metadata.scorer_path
+    wins when present.
+    """
+    explicit = (request.get("metadata") or {}).get("scorer_path")
+    if explicit and Path(str(explicit)).is_file():
+        return str(explicit)
+    trial = Path(trial_dir)
+    for parent in trial.parents:
+        tasks = parent / "tasks"
+        if tasks.is_dir():
+            matches = sorted(tasks.glob("*/scorer.py"))
+            if matches:
+                return str(matches[0])
+    return None
+
+
 def _run_deterministic(request: dict[str, Any], scorer_path: str | None) -> dict[str, Any]:
     """Deterministic check: local scorer module if provided, else a stub rule.
 
     scorer_path points to a deterministic scorer.py (e.g. the Forge-generated
     scorer); it is imported and called with the frozen trial's artifacts.
+    When no scorer can be found the backend reports incomplete_evidence
+    (no fabricated numbers) rather than guessing.
     """
     trial_dir = None
     for ref in (request.get("trace_ref"), request.get("artifact_ref")):
@@ -182,13 +205,15 @@ def _run_deterministic(request: dict[str, Any], scorer_path: str | None) -> dict
             break
     if not trial_dir:
         raise ValueError("deterministic judge requires trace_ref/artifact_ref.trial_dir")
+    scorer_path = scorer_path or _discover_scorer(trial_dir, request)
     if not scorer_path or not Path(scorer_path).is_file():
         return {
             "schema_version": "agentjudge.joint_judgment.v1",
             "score": None,
             "subscores": {},
             "question_judgments": [],
-            "provenance": {"protocol": "deterministic", "judge": "rule", "available": False},
+            "provenance": {"protocol": "deterministic", "judge": "rule", "available": False,
+                            "reason": "no scorer.py found near the trial"},
             "status": "incomplete_evidence",
         }
     import importlib.util
