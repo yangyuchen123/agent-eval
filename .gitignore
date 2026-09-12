@@ -8,8 +8,6 @@ build/
 
 # 评测产物
 run/
-judge/rubric_judgment.json   # judge 运行输出（不入库）
-judge/rubric_scores.json     # judge 运行输出（不入库）
 examples/swebench/work/          # repo checkouts (large)
 examples/swebench/node_modules/
 examples/swebench/predictions.json   # agent 产物(结果数据)
@@ -19,3 +17,5 @@ examples/demo/data/
 .env
 .env.*
 !.env.example
+judge/rubric_judgment.json
+judge/rubric_scores.json
