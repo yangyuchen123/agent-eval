@@ -101,8 +101,8 @@ def run_pi_judge(request: JudgeRequest) -> tuple[dict[str, Any], Path, str]:
     session_dir = SESSION_ROOT / f"f-judge-{uuid.uuid4().hex[:8]}"
     session_dir.mkdir(parents=True, exist_ok=True)
     prompt = build_prompt(request)
-    provider = os.environ.get("JUDGE_PROVIDER", "siliconflow")
-    model = os.environ.get("JUDGE_MODEL", "Qwen/Qwen3-8B")
+    provider = os.environ.get("F_JUDGE_PROVIDER", "blade")
+    model = os.environ.get("F_JUDGE_MODEL") or os.environ.get("LLM_MODEL", "gpt-5.6-luna")
     pi_bin = os.environ.get("PI_BIN") or shutil.which("pi") or "pi"
     ext = PI_EXT if PI_EXT.is_file() else None
     cmd = [pi_bin, "-p", prompt, "--mode", "json", "--model", f"{provider}/{model}",
@@ -173,7 +173,7 @@ def f_response(request: JudgeRequest, payload: dict[str, Any], session_dir: Path
         "findings": question_judgments,
         "question_judgments": question_judgments,
         "provenance": {
-            "model": f"{os.environ.get('JUDGE_PROVIDER', 'siliconflow')}/{os.environ.get('JUDGE_MODEL', 'Qwen/Qwen3-8B')}",
+            "model": f"{os.environ.get('F_JUDGE_PROVIDER', 'blade')}/{os.environ.get('F_JUDGE_MODEL') or os.environ.get('LLM_MODEL', 'gpt-5.6-luna')}",
             "protocol": "F_agent_pi_judge",
             "protocol_version": "agent-eval.abcd.frozen.v1/F",
             "judge": "pi",
