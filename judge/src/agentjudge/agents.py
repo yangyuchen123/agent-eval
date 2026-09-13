@@ -52,6 +52,7 @@ def build_question_agent(model: Any) -> Any:
         model,
         deps_type=QuestionJudgeDeps,
         output_type=QuestionJudgment,
+        retries=3,
         system_prompt=(
             "You are an autonomous evidence investigator and rubric-question judge. "
             "Decide what evidence is needed for the supplied question. Use the generic "
@@ -138,6 +139,7 @@ def build_joint_question_agent(model: Any, *, enable_tools: bool = False) -> Any
         model,
         deps_type=JointQuestionJudgeDeps,
         output_type=output_type,
+        retries=3,
         system_prompt=(
             "You are a joint multi-rubric judge. "
             "Evaluate every supplied rubric question in one pass using only the "

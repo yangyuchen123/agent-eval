@@ -39,6 +39,8 @@ class TwoStageJointJudgeService:
         agent = Agent(
             self.model,
             output_type=EvidenceCollection,
+
+            retries=3,
             system_prompt=(
                 "You are an evidence collector, not a judge. For every supplied rubric "
                 "question, find only directly relevant excerpts in the task response or "
@@ -58,6 +60,8 @@ class TwoStageJointJudgeService:
         agent = Agent(
             self.model,
             output_type=JointQuestionJudgment,
+
+            retries=3,
             system_prompt=(
                 "You are a scoring judge. Score every rubric question using only the "
                 "frozen evidence packet. Do not search, add evidence, or infer facts "
@@ -86,6 +90,8 @@ class EvidenceThenPerQuestionJudgeService(TwoStageJointJudgeService):
         agent = Agent(
             self.model,
             output_type=QuestionJudgment,
+
+            retries=3,
             system_prompt=(
                 "You are a rubric-specific scoring judge. Score only the one supplied "
                 "rubric question using only the frozen evidence packet. Do not search, "
